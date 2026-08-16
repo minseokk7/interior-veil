@@ -31,11 +31,11 @@ public final class VeilKeyBindings {
                 CATEGORY
         ));
 
-        // 결계 설정: 기본값 O (Iris 셰이더 K키 충돌 방지)
+        // 결계 설정: 기본값 H (Iris 셰이더 K/O키 충돌 완벽 방지)
         OPEN_CONFIG = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.interiorveil.open_config",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_O,
+                GLFW.GLFW_KEY_H,
                 CATEGORY
         ));
 
