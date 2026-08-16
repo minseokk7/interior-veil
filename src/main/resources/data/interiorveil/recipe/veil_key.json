@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " A ",
+    "AEA",
+    " A "
+  ],
+  "key": {
+    "A": "minecraft:amethyst_shard",
+    "E": "minecraft:echo_shard"
+  },
+  "result": {
+    "id": "interiorveil:veil_key",
+    "count": 1
+  }
+}

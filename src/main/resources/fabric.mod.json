@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "interiorveil",
+	"version": "${version}",
+	"name": "Interior Veil",
+	"description": "Beacon-powered pocket sanctums hidden behind seamless circular veil boundaries.",
+	"authors": [
+		"minse"
+	],
+	"license": "CC0-1.0",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.minse.interiorveil.InteriorVeil"
+		],
+		"client": [
+			"dev.minse.interiorveil.client.InteriorVeilClient"
+		]
+	},
+	"mixins": [
+		{
+			"config": "interiorveil.mixins.json"
+		},
+		{
+			"config": "interiorveil.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21.10",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "dev.minse.interiorveil.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "BeaconRendererMixin",
+    "FogRendererMixin",
+    "GuiMapMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

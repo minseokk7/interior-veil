@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "dev.minse.interiorveil.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "NaturalSpawnerMixin",
+    "EnderPearlEntityMixin",
+    "ChorusFruitItemMixin",
+    "BeaconBlockMixin",
+    "ProjectileMixin",
+    "LevelExplosionMixin",
+    "MobMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
