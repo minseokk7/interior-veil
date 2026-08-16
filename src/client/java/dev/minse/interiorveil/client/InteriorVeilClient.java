@@ -103,14 +103,10 @@ public final class InteriorVeilClient implements ClientModInitializer {
 
             // 단축키 입력 처리
             while (VeilKeyBindings.OPEN_CONFIG.consumeClick()) {
-                if (VeilConfigClientState.current() != null) {
-                    client.setScreen(new VeilConfigScreen(VeilConfigClientState.current()));
-                } else if (client.player != null) {
-                    client.player.displayClientMessage(
-                            Component.literal("§c활성화된 결계 근처에 있거나 결계 설정 권한이 필요합니다."),
-                            true
-                    );
-                }
+                // 서버에 결계 설정 화면 요청 (서버가 오너 권한 검증 및 최신 데이터로 화면 팝업 응답)
+                ClientPlayNetworking.send(new VeilAdminActionPayload(
+                        new UUID(0L, 0L), "open_config_screen", ""
+                ));
             }
         });
         WorldRenderEvents.END_EXTRACTION.register(MirrorPlayers::extractRenderStates);

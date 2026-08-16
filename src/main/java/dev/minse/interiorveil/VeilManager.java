@@ -222,11 +222,47 @@ public final class VeilManager {
     }
 
     public void applyAdminAction(ServerPlayer player, VeilAdminActionPayload payload) {
-        VeilBarrier current = barriers.values().stream()
-                .filter(b -> b.owner().equals(player.getUUID()) || player.hasPermissions(2))
-                .filter(b -> b.id().equals(pocketAssignments.get(player.getUUID())) || holdsKeyFor(player, b))
-                .findFirst()
-                .orElse(null);
+        if ("open_config_screen".equals(payload.action())) {
+            // 플레이어가 소유하거나 관리 권한이 있는 결계 탐색 (가장 가까운 결계 우선)
+            VeilBarrier targetBarrier = barriers.values().stream()
+                    .filter(b -> b.owner().equals(player.getUUID()) || player.hasPermissions(2))
+                    .min(Comparator.comparingDouble(b -> {
+                        if (player.level().dimension().equals(InteriorVeil.POCKET_LEVEL)) {
+                            return BarrierGeometry.horizontalDistanceSquared(player.getX(), player.getZ(), b.getPocketX() + 0.5, b.getPocketZ() + 0.5);
+                        } else {
+                            return BarrierGeometry.horizontalDistanceSquared(player.getX(), player.getZ(), b.centerX() + 0.5, b.centerZ() + 0.5);
+                        }
+                    }))
+                    .orElse(null);
+
+            if (targetBarrier != null) {
+                openConfig(player, targetBarrier, true);
+            } else {
+                player.displayClientMessage(
+                        Component.literal("§c소유하거나 관리 권한이 있는 결계가 없습니다. 먼저 결계 열쇠로 신호기를 활성화하세요."),
+                        true
+                );
+            }
+            return;
+        }
+
+        VeilBarrier current = null;
+        if (payload.barrierId() != null && !payload.barrierId().equals(new UUID(0L, 0L))) {
+            current = barriers.get(payload.barrierId());
+        }
+        if (current == null) {
+            current = barriers.values().stream()
+                    .filter(b -> b.owner().equals(player.getUUID()) || player.hasPermissions(2))
+                    .filter(b -> b.id().equals(pocketAssignments.get(player.getUUID())) || holdsKeyFor(player, b))
+                    .findFirst()
+                    .orElse(null);
+        }
+        if (current == null) {
+            current = barriers.values().stream()
+                    .filter(b -> b.owner().equals(player.getUUID()) || player.hasPermissions(2))
+                    .findFirst()
+                    .orElse(null);
+        }
         if (current == null) {
             return;
         }
