@@ -2347,7 +2347,7 @@ public final class VeilManager {
         return red << 16 | green << 8 | blue;
     }
 
-    private static boolean isAttackFriendly(LivingEntity entity, VeilBarrier barrier) {
+    public static boolean isAttackFriendly(LivingEntity entity, VeilBarrier barrier) {
         if (entity instanceof ServerPlayer player) {
             if (player.getUUID().equals(barrier.owner())
                     || barrier.advanced().allowedPlayers().containsKey(player.getUUID())
