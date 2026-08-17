@@ -404,19 +404,89 @@ public final class VeilStrikeBeamRenderer {
             }
         }
 
-        // --- 4. [Ground Shockwave Ring] 지상 착탄 지점 6중 입체 도넛 링 ---
-        for (int grIdx = 0; grIdx < 6; grIdx++) {
-            int gStart = grIdx * 6;
+        // --- 4. [Ground Surface Concentric Wave Rings] 바닥 지표면에 바짝 밀착되어 쫙 퍼져나가는 10중 평면 동심원 파동 ---
+        int groundRingCount = 10;
+        int groundInterval = 4; // 4틱(0.2초) 간격으로 연속 발생
+        int groundLifetime = 60; // 60틱(3초) 동안 지면 확산
+
+        for (int grIdx = 0; grIdx < groundRingCount; grIdx++) {
+            int gStart = grIdx * groundInterval;
             int gElapsed = elapsed - gStart;
-            if (gElapsed >= 0 && gElapsed < 55) {
-                float gp = (float) gElapsed / 55.0f;
-                double gr = Math.pow(gp, 0.6) * 180.0;
-                float ga = (1.0f - gp) * 0.9f;
+            if (gElapsed >= 0 && gElapsed < groundLifetime) {
+                float gp = (float) gElapsed / (float) groundLifetime;
+                // 지표면을 타고 0m -> 240m까지 팽창
+                double gr = Math.pow(gp, 0.55) * 240.0;
+                float ga = (1.0f - gp) * 0.95f;
+
                 if (ga > 0.01f && gr > 0.5) {
-                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, beam.y + 0.8, beam.z, gr, 2.0f, 0, 230, 255, (int) (230 * ga));
-                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, beam.y + 0.8, beam.z, gr, 0.8f, 255, 255, 255, (int) (255 * ga));
+                    float ringWidth = (float) (2.5 + gp * 6.0); // 팽창할수록 자연스럽게 넓어지는 파면 폭
+                    int grR = (grIdx % 2 == 0) ? 0 : 40;
+                    int grG = (grIdx % 2 == 0) ? 235 : 200;
+                    int grB = 255;
+
+                    // 1) 바닥 표면 밀착 메인 네온 사이언 파동 띠
+                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, grR, grG, grB, (int) (240 * ga));
+                    // 2) 바닥 중심부 눈부신 화이트 코어 라인
+                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, gr, ringWidth * 0.35f, 240, 255, 255, (int) (255 * ga));
                 }
             }
+        }
+    }
+
+    /**
+     * 바닥 표면(Ground Level)에 바짝 밀착되어 수평으로 물결치듯 쫙 퍼져나가는 평면 동심원 충격파 링을 렌더링한다.
+     */
+    private static void drawFlatGroundWaveRing(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            Vec3 camPos,
+            double cx,
+            double cy,
+            double cz,
+            double radius,
+            float width,
+            int r,
+            int g,
+            int b,
+            int a
+    ) {
+        int segments = Math.max(64, Math.min(180, (int) (radius * 1.8)));
+        double innerR = Math.max(0.0, radius - width * 0.5);
+        double outerR = radius + width * 0.5;
+
+        for (int i = 0; i < segments; i++) {
+            double a1 = i * 2.0 * Math.PI / segments;
+            double a2 = (i + 1) * 2.0 * Math.PI / segments;
+
+            float sin1 = (float) Math.sin(a1);
+            float cos1 = (float) Math.cos(a1);
+            float sin2 = (float) Math.sin(a2);
+            float cos2 = (float) Math.cos(a2);
+
+            float y = (float) (cy - camPos.y);
+
+            float x1 = (float) (cx + innerR * cos1 - camPos.x);
+            float z1 = (float) (cz + innerR * sin1 - camPos.z);
+
+            float x2 = (float) (cx + outerR * cos1 - camPos.x);
+            float z2 = (float) (cz + outerR * sin1 - camPos.z);
+
+            float x3 = (float) (cx + outerR * cos2 - camPos.x);
+            float z3 = (float) (cz + outerR * sin2 - camPos.z);
+
+            float x4 = (float) (cx + innerR * cos2 - camPos.x);
+            float z4 = (float) (cz + innerR * sin2 - camPos.z);
+
+            // 상단/하단 양면 렌더링
+            consumer.addVertex(pose, x1, y, z1).setColor(r, g, b, a);
+            consumer.addVertex(pose, x2, y, z2).setColor(r, g, b, a);
+            consumer.addVertex(pose, x3, y, z3).setColor(r, g, b, a);
+            consumer.addVertex(pose, x4, y, z4).setColor(r, g, b, a);
+
+            consumer.addVertex(pose, x4, y, z4).setColor(r, g, b, a);
+            consumer.addVertex(pose, x3, y, z3).setColor(r, g, b, a);
+            consumer.addVertex(pose, x2, y, z2).setColor(r, g, b, a);
+            consumer.addVertex(pose, x1, y, z1).setColor(r, g, b, a);
         }
     }
 
