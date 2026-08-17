@@ -434,7 +434,7 @@ public final class VeilStrikeBeamRenderer {
     }
 
     /**
-     * 바닥 표면(Ground Level)에 바짝 밀착되어 수평으로 물결치듯 쫙 퍼져나가는 평면 동심원 충격파 링을 렌더링한다.
+     * 지형 표면(Terrain Heightmap)의 굴곡과 언덕, 산등성이를 실시간으로 완벽하게 타고 흐르는 동심원 충격파 링을 렌더링한다.
      */
     private static void drawFlatGroundWaveRing(
             VertexConsumer consumer,
@@ -450,7 +450,8 @@ public final class VeilStrikeBeamRenderer {
             int b,
             int a
     ) {
-        int segments = Math.max(64, Math.min(180, (int) (radius * 1.8)));
+        net.minecraft.client.multiplayer.ClientLevel level = Minecraft.getInstance().level;
+        int segments = Math.max(72, Math.min(240, (int) (radius * 2.2)));
         double innerR = Math.max(0.0, radius - width * 0.5);
         double outerR = radius + width * 0.5;
 
@@ -463,7 +464,34 @@ public final class VeilStrikeBeamRenderer {
             float sin2 = (float) Math.sin(a2);
             float cos2 = (float) Math.cos(a2);
 
-            float y = (float) (cy - camPos.y);
+            // 1. 세그먼트 1의 실제 지형 표면 Y 높이 샘플링
+            double wx1 = cx + radius * cos1;
+            double wz1 = cz + radius * sin1;
+            double groundY1 = cy;
+            if (level != null) {
+                int bx1 = (int) Math.floor(wx1);
+                int bz1 = (int) Math.floor(wz1);
+                int h1 = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, bx1, bz1);
+                if (h1 > level.getMinBuildHeight()) {
+                    groundY1 = h1 + 0.15;
+                }
+            }
+
+            // 2. 세그먼트 2의 실제 지형 표면 Y 높이 샘플링
+            double wx2 = cx + radius * cos2;
+            double wz2 = cz + radius * sin2;
+            double groundY2 = cy;
+            if (level != null) {
+                int bx2 = (int) Math.floor(wx2);
+                int bz2 = (int) Math.floor(wz2);
+                int h2 = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, bx2, bz2);
+                if (h2 > level.getMinBuildHeight()) {
+                    groundY2 = h2 + 0.15;
+                }
+            }
+
+            float y1 = (float) (groundY1 - camPos.y);
+            float y2 = (float) (groundY2 - camPos.y);
 
             float x1 = (float) (cx + innerR * cos1 - camPos.x);
             float z1 = (float) (cz + innerR * sin1 - camPos.z);
@@ -477,16 +505,16 @@ public final class VeilStrikeBeamRenderer {
             float x4 = (float) (cx + innerR * cos2 - camPos.x);
             float z4 = (float) (cz + innerR * sin2 - camPos.z);
 
-            // 상단/하단 양면 렌더링
-            consumer.addVertex(pose, x1, y, z1).setColor(r, g, b, a);
-            consumer.addVertex(pose, x2, y, z2).setColor(r, g, b, a);
-            consumer.addVertex(pose, x3, y, z3).setColor(r, g, b, a);
-            consumer.addVertex(pose, x4, y, z4).setColor(r, g, b, a);
+            // 상단/하단 양면 렌더링 (지형 표면에 완벽하게 밀착되어 굴곡을 타고 흐름)
+            consumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, a);
+            consumer.addVertex(pose, x2, y1, z2).setColor(r, g, b, a);
+            consumer.addVertex(pose, x3, y2, z3).setColor(r, g, b, a);
+            consumer.addVertex(pose, x4, y2, z4).setColor(r, g, b, a);
 
-            consumer.addVertex(pose, x4, y, z4).setColor(r, g, b, a);
-            consumer.addVertex(pose, x3, y, z3).setColor(r, g, b, a);
-            consumer.addVertex(pose, x2, y, z2).setColor(r, g, b, a);
-            consumer.addVertex(pose, x1, y, z1).setColor(r, g, b, a);
+            consumer.addVertex(pose, x4, y2, z4).setColor(r, g, b, a);
+            consumer.addVertex(pose, x3, y2, z3).setColor(r, g, b, a);
+            consumer.addVertex(pose, x2, y1, z2).setColor(r, g, b, a);
+            consumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, a);
         }
     }
 
