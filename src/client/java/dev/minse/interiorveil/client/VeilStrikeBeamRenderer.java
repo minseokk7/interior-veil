@@ -277,12 +277,12 @@ public final class VeilStrikeBeamRenderer {
             int g = (beam.color >> 8) & 0xFF;
             int b = beam.color & 0xFF;
 
-            boolean isEmp = (beam.color == 0x00E5FF);
+            boolean isHE = (beam.color == 0xFF2222);
 
-            if (isEmp) {
-                // [EMP 전용] 결계 내부 침투를 완벽 차단하는 전자기 링 및 지표면 파동 렌더링
-                if (elapsed < 120) {
-                    drawEmpShockwaveRings(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
+            if (!isHE) {
+                // [에너지/전술탄 전용 (EMP, 동결, 특이점, 낙진, 방어막)] 결계 내부 침투를 완벽 차단하는 전술 링 및 지표면 파동 렌더링
+                if (elapsed < 140) {
+                    drawEnergyShockwaveRings(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState, r, g, b);
                 }
             } else {
                 // [고폭탄 전용] 1. 다단계 초고속 열폭풍 충격파 파동 렌더링 (착탄 초기 160틱 = 8초)
@@ -308,9 +308,9 @@ public final class VeilStrikeBeamRenderer {
             double endY = Math.min(320.0, startY + 256.0);
 
             // 내부 코어 빔
-            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, isEmp ? 0.25f : 0.4f, coreR, coreG, coreB, coreAlpha, anim);
+            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, !isHE ? 0.25f : 0.4f, coreR, coreG, coreB, coreAlpha, anim);
             // 외부 글로우 빔
-            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, isEmp ? 0.65f : 0.95f, r, g, b, glowAlpha, -anim * 0.7f);
+            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, !isHE ? 0.65f : 0.95f, r, g, b, glowAlpha, -anim * 0.7f);
         }
 
         if (context.consumers() instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bufferSource) {
@@ -319,13 +319,9 @@ public final class VeilStrikeBeamRenderer {
     }
 
     /**
-     * [오르비탈 레일건 EMP 전용]
-     * 1. 상공 200m 수평 마하 디스크 충격파 링
-     * 2. 수직 궤도 빔을 관통하며 아래로 초고속 쇄도하는 14개의 전자기 가속 코일 링 (Accelerator Rings)
-     * 3. 빔 외곽을 휘감아 도는 이중 나선(Double Helix) 플라즈마 와류
-     * 4. 지상 수평 마하 충격파 방전 링
+     * 에너지 전술 탄종(EMP, 동결탄, 특이점탄, 나노낙진탄, 방어막포드) 전용 궤도 가속 코일 링 & 3D 네온 마하 링 & 지표면 동심원 파동 렌더링.
      */
-    private static void drawEmpShockwaveRings(
+    private static void drawEnergyShockwaveRings(
             VertexConsumer consumer,
             PoseStack.Pose pose,
             Vec3 camPos,
@@ -334,7 +330,8 @@ public final class VeilStrikeBeamRenderer {
             ActiveBeam beam,
             int elapsed,
             float anim,
-            dev.minse.interiorveil.network.ForcefieldStatePayload veilState
+            dev.minse.interiorveil.network.ForcefieldStatePayload veilState,
+            int beamR, int beamG, int beamB
     ) {
         double empCenterY = beam.y + 200.0;
         double startY = beam.y;
@@ -358,8 +355,8 @@ public final class VeilStrikeBeamRenderer {
                 if (isInsideVeil(px, pz, veilState)) continue;
                 float size = 1.6f;
 
-                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size, 0, 240, 255, (int) (240 * coilFade));
-                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size * 0.5f, 220, 255, 255, (int) (255 * coilFade));
+                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size, beamR, beamG, beamB, (int) (240 * coilFade));
+                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size * 0.5f, 255, 255, 255, (int) (255 * coilFade));
             }
         }
 
@@ -376,7 +373,7 @@ public final class VeilStrikeBeamRenderer {
                 double hz = beam.z + Math.sin(hAngle) * hr;
                 if (isInsideVeil(hx, hz, veilState)) continue;
 
-                drawSoftPuff(consumer, pose, camPos, hx, hy, hz, right, up, 1.4f, 80, 220, 255, 160);
+                drawSoftPuff(consumer, pose, camPos, hx, hy, hz, right, up, 1.4f, beamR, beamG, beamB, 160);
             }
         }
 
@@ -394,12 +391,8 @@ public final class VeilStrikeBeamRenderer {
                 float alpha = (1.0f - p) * 0.95f;
 
                 if (alpha > 0.01f && radius > 0.5) {
-                    int ringR = (r % 2 == 0) ? 0 : 50;
-                    int ringG = (r % 2 == 0) ? 245 : 210;
-                    int ringB = 255;
-
-                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, ringR, ringG, ringB, (int) (240 * alpha), veilState);
-                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 1.0f, 235, 255, 255, (int) (255 * alpha), veilState);
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, beamR, beamG, beamB, (int) (240 * alpha), veilState);
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 1.0f, 255, 255, 255, (int) (255 * alpha), veilState);
                 }
             }
         }
@@ -419,12 +412,8 @@ public final class VeilStrikeBeamRenderer {
 
                 if (ga > 0.01f && gr > 0.5) {
                     float ringWidth = (float) (2.5 + gp * 6.0);
-                    int grR = (grIdx % 2 == 0) ? 0 : 40;
-                    int grG = (grIdx % 2 == 0) ? 235 : 200;
-                    int grB = 255;
-
-                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, grR, grG, grB, (int) (240 * ga), veilState);
-                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, gr, ringWidth * 0.35f, 240, 255, 255, (int) (255 * ga), veilState);
+                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, beamR, beamG, beamB, (int) (240 * ga), veilState);
+                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, gr, ringWidth * 0.35f, 255, 255, 255, (int) (255 * ga), veilState);
                 }
             }
         }

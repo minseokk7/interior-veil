@@ -52,16 +52,20 @@ public final class VeilTargetMapScreen extends Screen {
         }
     }
 
-    private int strikeType = 0; // 0: 고폭, 1: EMP, 2: 보급
+    private int strikeType = 0; // 0: 고폭, 1: EMP, 2: 보급, 3: 동결, 4: 특이점, 5: 낙진, 6: 방어포드
     private dev.minse.interiorveil.StrikeFormation strikeFormation = dev.minse.interiorveil.StrikeFormation.SINGLE;
     private Button typeButton;
     private Button formationButton;
 
     private String getTypeButtonText() {
         return switch (strikeType) {
-            case 1 -> "§b⚡ EMP탄";
-            case 2 -> "§a📦 보급포드";
-            default -> "§c💥 고폭탄";
+            case 1 -> "§b⚡ EMP";
+            case 2 -> "§a📦 보급";
+            case 3 -> "§9❄️ 동결";
+            case 4 -> "§5🕳️ 특이점";
+            case 5 -> "§2☣️ 낙진";
+            case 6 -> "§6🛡️ 방어포드";
+            default -> "§c💥 고폭";
         };
     }
 
@@ -77,7 +81,7 @@ public final class VeilTargetMapScreen extends Screen {
         int buttonY = mapTop + mapSize + 8;
 
         typeButton = addRenderableWidget(Button.builder(Component.literal(getTypeButtonText()), btn -> {
-            strikeType = (strikeType + 1) % 3;
+            strikeType = (strikeType + 1) % 7;
             btn.setMessage(Component.literal(getTypeButtonText()));
         }).bounds(this.width / 2 - 215, buttonY, 75, 20).build());
 
@@ -117,7 +121,7 @@ public final class VeilTargetMapScreen extends Screen {
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_B) {
-            strikeType = (strikeType + 1) % 3;
+            strikeType = (strikeType + 1) % 7;
             if (typeButton != null) {
                 typeButton.setMessage(Component.literal(getTypeButtonText()));
             }
@@ -271,6 +275,10 @@ public final class VeilTargetMapScreen extends Screen {
             int markerColorRgb = switch (strikeType) {
                 case 1 -> 0x00E5FF; // EMP (Cyan)
                 case 2 -> 0x55FF55; // Supply (Green)
+                case 3 -> 0x80D8FF; // Cryo (Ice Blue)
+                case 4 -> 0x9400D3; // Singularity (Dark Purple)
+                case 5 -> 0x00FF66; // Nanite (Emerald)
+                case 6 -> 0xFFD700; // Shield Pod (Gold)
                 default -> 0xFF2222; // HE (Red)
             };
             int primaryMarkerColor = (Math.max(50, alpha) << 24) | markerColorRgb;
@@ -301,6 +309,28 @@ public final class VeilTargetMapScreen extends Screen {
                     graphics.fill(px - 3, pz, px + 4, pz + 1, subMarkerColor);
                     graphics.fill(px, pz - 3, px + 1, pz + 4, subMarkerColor);
                     drawCircle(graphics, px, pz, (int) (strikeRadiusPixels * 0.75), circleColor);
+                }
+            }
+        }
+
+        // 스컬크 탐지 적 핑 마커 렌더링 (붉은색 점멸 다이아몬드 아이콘)
+        if (map.sculkPings() != null && map.sculkPings().length > 0) {
+            int halfRange = map.resolution() * map.cellSize() / 2;
+            long time = System.currentTimeMillis();
+            boolean flash = (time / 300) % 2 == 0;
+            int pingColor = flash ? 0xFFFF0033 : 0xAAFF3355;
+            for (int i = 0; i < map.sculkPings().length; i += 2) {
+                int enemyX = map.sculkPings()[i];
+                int enemyZ = map.sculkPings()[i + 1];
+                double eMapX = (enemyX - (map.centerX() - halfRange)) / (double) map.cellSize();
+                double eMapZ = (enemyZ - (map.centerZ() - halfRange)) / (double) map.cellSize();
+                int px = (int) (renderOriginX + eMapX * renderCellPixel);
+                int pz = (int) (renderOriginZ + eMapZ * renderCellPixel);
+
+                if (px >= mapLeft && px < mapLeft + mapSize && pz >= mapTop && pz < mapTop + mapSize) {
+                    graphics.fill(px - 2, pz, px + 3, pz + 1, pingColor);
+                    graphics.fill(px, pz - 2, px + 1, pz + 3, pingColor);
+                    graphics.fill(px - 1, pz - 1, px + 2, pz + 2, pingColor);
                 }
             }
         }

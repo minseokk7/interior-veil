@@ -460,6 +460,7 @@ public final class VeilManager {
             synchronizeEnvironment();
             tickAttackModes();
             tickStrikeBeams();
+            tickBeaconCores();
         }
         tickPendingStrikes();
         // 지연 블록 제거 - 틱당 최대 4096블록 처리 (서버 프리즈 방지)
@@ -1235,7 +1236,7 @@ public final class VeilManager {
     }
 
     /**
-     * 바닐라 및 모드 신호기 베이스 블록(철, 금, 다이아, 에메랄드, 네더라이트 블록 등) 여부 판정.
+     * 바닐라 및 모드 신호기 베이스 블록(철, 금, 다이아, 에메랄드, 네더라이트, 구리, 자수정, 스컬크 등) 여부 판정.
      */
     private static boolean isBeaconBaseBlock(BlockState state) {
         if (state.is(net.minecraft.tags.BlockTags.BEACON_BASE_BLOCKS)) {
@@ -1245,7 +1246,61 @@ public final class VeilManager {
                 || state.is(Blocks.GOLD_BLOCK)
                 || state.is(Blocks.DIAMOND_BLOCK)
                 || state.is(Blocks.EMERALD_BLOCK)
-                || state.is(Blocks.NETHERITE_BLOCK);
+                || state.is(Blocks.NETHERITE_BLOCK)
+                || state.is(Blocks.COPPER_BLOCK)
+                || state.is(Blocks.WAXED_COPPER_BLOCK)
+                || state.is(Blocks.CUT_COPPER)
+                || state.is(Blocks.LIGHTNING_ROD)
+                || state.is(Blocks.AMETHYST_BLOCK)
+                || state.is(Blocks.AMETHYST_CLUSTER)
+                || state.is(Blocks.SCULK)
+                || state.is(Blocks.SCULK_CATALYST);
+    }
+
+    /**
+     * 신호기 피라미드 베이스에 스컬크 코어(스컬크, 스컬크 촉매 등)가 장착되어 있는지 검사.
+     */
+    public boolean hasSculkCore(VeilBarrier barrier) {
+        ServerLevel source = server.getLevel(barrier.sourceKey());
+        ServerLevel pocket = server.getLevel(InteriorVeil.POCKET_LEVEL);
+        return checkBaseBlock(source, barrier.center(), state -> state.is(Blocks.SCULK) || state.is(Blocks.SCULK_CATALYST) || state.is(Blocks.SCULK_SHRIEKER))
+                || (pocket != null && checkBaseBlock(pocket, new BlockPos(barrier.getPocketX(), barrier.centerY(), barrier.getPocketZ()), state -> state.is(Blocks.SCULK) || state.is(Blocks.SCULK_CATALYST) || state.is(Blocks.SCULK_SHRIEKER)));
+    }
+
+    /**
+     * 신호기 피라미드 베이스에 자수정 코어(자수정 블록, 자수정 군집)가 장착되어 있는지 검사.
+     */
+    public boolean hasAmethystCore(VeilBarrier barrier) {
+        ServerLevel source = server.getLevel(barrier.sourceKey());
+        ServerLevel pocket = server.getLevel(InteriorVeil.POCKET_LEVEL);
+        return checkBaseBlock(source, barrier.center(), state -> state.is(Blocks.AMETHYST_BLOCK) || state.is(Blocks.AMETHYST_CLUSTER))
+                || (pocket != null && checkBaseBlock(pocket, new BlockPos(barrier.getPocketX(), barrier.centerY(), barrier.getPocketZ()), state -> state.is(Blocks.AMETHYST_BLOCK) || state.is(Blocks.AMETHYST_CLUSTER)));
+    }
+
+    /**
+     * 신호기 피라미드 베이스에 구리 코어(구리 블록 계열, 피뢰침)가 장착되어 있는지 검사.
+     */
+    public boolean hasCopperCore(VeilBarrier barrier) {
+        ServerLevel source = server.getLevel(barrier.sourceKey());
+        ServerLevel pocket = server.getLevel(InteriorVeil.POCKET_LEVEL);
+        return checkBaseBlock(source, barrier.center(), state -> state.is(Blocks.COPPER_BLOCK) || state.is(Blocks.WAXED_COPPER_BLOCK) || state.is(Blocks.LIGHTNING_ROD) || state.is(Blocks.CUT_COPPER))
+                || (pocket != null && checkBaseBlock(pocket, new BlockPos(barrier.getPocketX(), barrier.centerY(), barrier.getPocketZ()), state -> state.is(Blocks.COPPER_BLOCK) || state.is(Blocks.WAXED_COPPER_BLOCK) || state.is(Blocks.LIGHTNING_ROD) || state.is(Blocks.CUT_COPPER)));
+    }
+
+    private static boolean checkBaseBlock(ServerLevel level, BlockPos beaconPos, java.util.function.Predicate<BlockState> predicate) {
+        if (level == null) return false;
+        for (int layer = 1; layer <= 4; layer++) {
+            int y = beaconPos.getY() - layer;
+            for (int x = beaconPos.getX() - layer; x <= beaconPos.getX() + layer; x++) {
+                for (int z = beaconPos.getZ() - layer; z <= beaconPos.getZ() + layer; z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    if (level.isLoaded(p) && predicate.test(level.getBlockState(p))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private void synchronizeEnvironment() {
@@ -1312,7 +1367,29 @@ public final class VeilManager {
                 // Create / 레드스톤 호환 출력: 신호기 위치 갱신 (Create Redstone Link / 대포 자동 격발기 트리거)
                 BlockPos beaconPos = barrier.center();
                 source.updateNeighborsAt(beaconPos, Blocks.BEACON);
-                source.updateNeighborsAt(beaconPos.below(), Blocks.BEACON);
+            }
+        }
+    }
+
+    /**
+     * 신호기 코어 모듈(자수정 코어 등) 틱 효과 처리.
+     */
+    private void tickBeaconCores() {
+        for (VeilBarrier barrier : barriers.values()) {
+            if (!isBarrierPowered(barrier)) continue;
+            if (hasAmethystCore(barrier)) {
+                // 자수정 코어: 결계 내부의 모든 아군 플레이어에게 재생 II 및 포만감, 흡수 버프 부여
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    boolean insidePocket = player.level().dimension().equals(InteriorVeil.POCKET_LEVEL)
+                            && barrier.id().equals(pocketAssignments.get(player.getUUID()));
+                    boolean insideOverworld = barrier.sourceKey().equals(player.level().dimension())
+                            && barrier.contains(player.getX(), player.getY(), player.getZ(), 0, false);
+                    if ((insidePocket || insideOverworld) && isAttackFriendly(player, barrier)) {
+                        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 80, 1, false, false, true));
+                        player.addEffect(new MobEffectInstance(MobEffects.SATURATION, 40, 0, false, false, false));
+                        player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 80, 0, false, false, true));
+                    }
+                }
             }
         }
     }
@@ -1429,13 +1506,14 @@ public final class VeilManager {
             return;
         }
 
-        // 1. 발사 쿨다운 검사 (7초)
+        // 1. 발사 쿨다운 검사 (기본 7초, 구리 코어 장착 시 3초로 가속)
+        long cooldownDuration = hasCopperCore(barrier) ? 3000L : 7000L;
         long now = System.currentTimeMillis();
         Long lastTime = strikeCooldowns.get(barrier.id());
-        if (lastTime != null && now - lastTime < 7000L) {
-            long remSec = (7000L - (now - lastTime) + 999L) / 1000L;
+        if (lastTime != null && now - lastTime < cooldownDuration) {
+            long remSec = (cooldownDuration - (now - lastTime) + 999L) / 1000L;
             player.displayClientMessage(
-                    Component.literal(String.format("§c⚠ 궤도 함포 재장전 및 냉각 중입니다! (남은 시간: %d초)", remSec)),
+                    Component.literal(String.format("§c⚠ 궤도 함포 재장전 및 냉각 중입니다! (남은 시간: %d초%s)", remSec, hasCopperCore(barrier) ? " [구리 코어 가속]" : "")),
                     true
             );
             return;
@@ -1456,7 +1534,15 @@ public final class VeilManager {
         int spacing = Math.max(14, (int) (barrier.advanced().strikeRadius() * 1.5));
         java.util.List<int[]> offsets = formation.getOffsets(spacing);
 
-        String typeLabel = strikeType == 1 ? "⚡ EMP 펄스" : (strikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍");
+        String typeLabel = switch (strikeType) {
+            case 1 -> "⚡ EMP 펄스";
+            case 2 -> "📦 궤도 보급 포드";
+            case 3 -> "❄️ 극저온 동결";
+            case 4 -> "🕳️ 중력 특이점";
+            case 5 -> "☣️ 나노 낙진";
+            case 6 -> "🛡️ 방어막 포드";
+            default -> "💥 고폭 열폭풍";
+        };
         String formLabel = formation.getDisplayName();
         player.displayClientMessage(
                 Component.literal(String.format("🛰️ 궤도 폭격 발사 승인: [%s | %s] [X: %d, Y: %d, Z: %d] (총 %d발 연쇄 투하)",
@@ -1475,7 +1561,7 @@ public final class VeilManager {
             Vec3 subTarget = new Vec3(tx + 0.5, ty + 0.5, tz + 0.5);
             int executeTick = tickCounter + 100 + (i * 3);
             boolean isPrimary = (i == 0); // 0번째만 대표 카운트다운 및 도달 타이틀 담당
-            pendingStrikes.add(new PendingStrike(source.dimension(), origin, subTarget, barrier.id(), executeTick, strikeType, isPrimary));
+            pendingStrikes.add(new PendingStrike(source.dimension(), origin, subTarget, barrier.id(), executeTick, strikeType, isPrimary, player.getUUID()));
         }
 
         // 발사 즉시 첫 번째 '5' 카운트다운 타이틀 전송 (1회만 전송)
@@ -1611,6 +1697,10 @@ public final class VeilManager {
             int strikeType = strike.strikeType();
             int bombRadius = barrier.advanced().strikeRadius();
 
+            int kills = 0;
+            float totalDamage = 0;
+            int debuffedCount = 0;
+
             if (strikeType == 1) {
                 // [탄종 1: EMP 전자기 펄스탄] - 지형 파괴 없음, 광역 마비 및 전기 방전, 겉날개 무력화
                 // * 결계 내부(오버월드 결계 영역 및 포켓 차원)에 있는 모든 대상은 완벽하게 보호됨!
@@ -1620,11 +1710,14 @@ public final class VeilManager {
                         candidate -> candidate.isAlive()
                                 && !isProtectedFromThermalShockwave(candidate, barrier)
                                 && isTargetableHostile(candidate, barrier))) {
-                    // 마비 및 디버프
+                    boolean wasAlive = entity.isAlive();
                     entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 5, false, false));
                     entity.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 2, false, false));
                     entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 200, 0, false, false));
                     damageTarget(level, entity, 8.0F);
+                    totalDamage += 8.0F;
+                    debuffedCount++;
+                    if (wasAlive && entity.isDeadOrDying()) kills++;
                     if (entity instanceof ServerPlayer sp) {
                         sp.stopFallFlying();
                         sp.displayClientMessage(
@@ -1637,12 +1730,7 @@ public final class VeilManager {
 
                 // EMP 푸른 전기 빔 (color: 0x00E5FF, 지속시간 600틱 = 30초)
                 int beamColor = 0x00E5FF;
-                dev.minse.interiorveil.network.StrikeBeamPayload beamPayload = new dev.minse.interiorveil.network.StrikeBeamPayload(
-                        target.x, (int) target.y, target.z, 600, beamColor
-                );
-                for (ServerPlayer player : level.players()) {
-                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, beamPayload);
-                }
+                sendStrikeBeam(level, target, 600, beamColor);
 
                 // EMP 번개 굉음 및 대규모 전기 스파크 파티클 (상공 200블럭 및 지상)
                 BlockPos centerPos = BlockPos.containing(target);
@@ -1657,7 +1745,6 @@ public final class VeilManager {
             } else if (strikeType == 2) {
                 // [탄종 2: 궤도 보급 포드 투하] - 전술 보급품 상자 낙하
                 BlockPos landPos = BlockPos.containing(target);
-                // 착탄 지점에 상자 또는 보급 블록 배치
                 if (level.getBlockState(landPos).canBeReplaced()) {
                     level.setBlock(landPos, Blocks.CHEST.defaultBlockState(), 3);
                     BlockEntity be = level.getBlockEntity(landPos);
@@ -1672,28 +1759,185 @@ public final class VeilManager {
                     }
                 }
 
-                // 보급 포드 착탄 사운드 & 불꽃 파티클
                 level.playSound(null, landPos, SoundEvents.ANVIL_LAND, SoundSource.BLOCKS, 5.0F, 0.8F);
                 level.playSound(null, landPos, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 6.0F, 1.5F);
                 level.sendParticles(ParticleTypes.FIREWORK, target.x, target.y + 1, target.z, 50, 2.0, 2.0, 2.0, 0.15);
                 level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, target.x, target.y + 1, target.z, 40, 1.5, 3.0, 1.5, 0.05);
+            } else if (strikeType == 3) {
+                // [탄종 3: ❄️ 극저온 동결탄 (Cryo)] - 수분 결빙 및 극저온 빙결 제압
+                double cryoRadius = Math.max(48.0, bombRadius * 2.8);
+                AABB cryoArea = new AABB(target, target).inflate(cryoRadius);
+                for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, cryoArea,
+                        candidate -> candidate.isAlive()
+                                && !isProtectedFromThermalShockwave(candidate, barrier)
+                                && isTargetableHostile(candidate, barrier))) {
+                    boolean wasAlive = entity.isAlive();
+                    entity.setTicksFrozen(360);
+                    entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 240, 4, false, false));
+                    entity.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 240, 2, false, false));
+                    entity.hurtServer(level, level.damageSources().freeze(), 14.0F);
+                    totalDamage += 14.0F;
+                    debuffedCount++;
+                    if (wasAlive && entity.isDeadOrDying()) kills++;
+                }
+
+                // 주변 물 결빙
+                int fRad = Math.min(24, (int) (bombRadius * 1.2));
+                BlockPos.MutableBlockPos mPos = new BlockPos.MutableBlockPos();
+                for (int dx = -fRad; dx <= fRad; dx++) {
+                    for (int dz = -fRad; dz <= fRad; dz++) {
+                        if (dx * dx + dz * dz > fRad * fRad) continue;
+                        int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) target.x + dx, (int) target.z + dz);
+                        mPos.set((int) target.x + dx, surfaceY - 1, (int) target.z + dz);
+                        if (level.getBlockState(mPos).is(Blocks.WATER)) {
+                            level.setBlock(mPos, Blocks.FROSTED_ICE.defaultBlockState(), 3);
+                        }
+                    }
+                }
+
+                sendStrikeBeam(level, target, 600, 0x80D8FF);
+                BlockPos cPos = BlockPos.containing(target);
+                level.playSound(null, cPos, SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 8.0F, 0.7F);
+                level.playSound(null, cPos, SoundEvents.PLAYER_HURT_FREEZE, SoundSource.PLAYERS, 6.0F, 1.2F);
+                for (int i = 0; i < 40; i++) {
+                    level.sendParticles(ParticleTypes.SNOWFLAKE, target.x, target.y + 1, target.z, 20, 8.0, 3.0, 8.0, 0.05);
+                }
+            } else if (strikeType == 4) {
+                // [탄종 4: 🕳️ 중력 특이점 탄 (Singularity)] - 반경 48m 내 적을 중심점으로 강력 흡입 후 압축 폭발
+                double singRadius = 48.0;
+                AABB singArea = new AABB(target, target).inflate(singRadius);
+                for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, singArea,
+                        candidate -> candidate.isAlive()
+                                && !isProtectedFromThermalShockwave(candidate, barrier)
+                                && isTargetableHostile(candidate, barrier))) {
+                    boolean wasAlive = entity.isAlive();
+                    Vec3 dir = target.subtract(entity.position());
+                    double len = Math.max(0.5, dir.length());
+                    entity.setDeltaMovement(dir.scale(1.8 / len).add(0, 0.5, 0));
+                    entity.hurtMarked = true;
+                    entity.hurtServer(level, level.damageSources().magic(), 26.0F);
+                    entity.addEffect(new MobEffectInstance(MobEffects.LEVITATION, 40, 1, false, false));
+                    entity.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 120, 0, false, false));
+                    totalDamage += 26.0F;
+                    debuffedCount++;
+                    if (wasAlive && entity.isDeadOrDying()) kills++;
+                }
+
+                sendStrikeBeam(level, target, 600, 0x9400D3);
+                BlockPos cPos = BlockPos.containing(target);
+                level.playSound(null, cPos, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.BLOCKS, 10.0F, 0.5F);
+                level.playSound(null, cPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 8.0F, 1.4F);
+                for (int i = 0; i < 50; i++) {
+                    level.sendParticles(ParticleTypes.PORTAL, target.x, target.y + 1, target.z, 30, 6.0, 3.0, 6.0, 0.5);
+                }
+            } else if (strikeType == 5) {
+                // [탄종 5: ☣️ 나노 독소 / 방사능 낙진탄 (Nanite Fallout)] - 지속 독소 안개 지대
+                double nanoRadius = Math.max(40.0, bombRadius * 2.5);
+                AABB nanoArea = new AABB(target, target).inflate(nanoRadius);
+                for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, nanoArea,
+                        candidate -> candidate.isAlive()
+                                && !isProtectedFromThermalShockwave(candidate, barrier)
+                                && isTargetableHostile(candidate, barrier))) {
+                    boolean wasAlive = entity.isAlive();
+                    entity.addEffect(new MobEffectInstance(MobEffects.WITHER, 300, 1, false, false));
+                    entity.addEffect(new MobEffectInstance(MobEffects.POISON, 300, 1, false, false));
+                    entity.addEffect(new MobEffectInstance(MobEffects.HUNGER, 300, 2, false, false));
+                    entity.hurtServer(level, level.damageSources().magic(), 18.0F);
+                    totalDamage += 18.0F;
+                    debuffedCount++;
+                    if (wasAlive && entity.isDeadOrDying()) kills++;
+                }
+
+                net.minecraft.world.entity.AreaEffectCloud cloud = new net.minecraft.world.entity.AreaEffectCloud(level, target.x, target.y + 0.5, target.z);
+                cloud.setRadius((float) (bombRadius * 1.2));
+                cloud.setDuration(400); // 20초 지속
+                cloud.setRadiusPerTick(-0.02F);
+                cloud.addEffect(new MobEffectInstance(MobEffects.WITHER, 100, 1));
+                cloud.addEffect(new MobEffectInstance(MobEffects.POISON, 100, 1));
+                level.addFreshEntity(cloud);
+
+                sendStrikeBeam(level, target, 600, 0x00FF66);
+                BlockPos cPos = BlockPos.containing(target);
+                level.playSound(null, cPos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 8.0F, 1.1F);
+                level.playSound(null, cPos, SoundEvents.EVOKER_CAST_SPELL, SoundSource.HOSTILE, 6.0F, 0.8F);
+            } else if (strikeType == 6) {
+                // [탄종 6: 🛡️ 궤도 드롭 방어막 포드 (Deployable Shield Pod)] - 착탄 지점에 1분간 임시 방어 돔 소환
+                BlockPos podCenter = BlockPos.containing(target);
+                spawnDeployableShieldPod(level, podCenter, barrier.owner());
+                sendStrikeBeam(level, target, 600, 0xFFD700);
+                level.playSound(null, podCenter, SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 10.0F, 1.5F);
+                level.playSound(null, podCenter, SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 5.0F, 1.2F);
             } else {
                 // [탄종 0: 고폭 열폭풍탄 - 기본값]
                 destroyBombRadius(level, target, bombRadius);
 
                 int craterBottomY = Math.max(level.getMinY(), (int) target.y - bombRadius);
                 int beamColor = 0xFF2222;
-                dev.minse.interiorveil.network.StrikeBeamPayload beamPayload = new dev.minse.interiorveil.network.StrikeBeamPayload(
-                        target.x, craterBottomY, target.z, 2400, beamColor
-                );
-                for (ServerPlayer player : level.players()) {
-                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, beamPayload);
-                }
+                sendStrikeBeam(level, target, 2400, beamColor);
 
                 emitLaserColumnExplosion(level, target, craterBottomY);
-                emitThermalShockwave(level, target, barrier, bombRadius);
+                int[] stats = emitThermalShockwave(level, target, barrier, bombRadius);
+                totalDamage += stats[0];
+                kills += stats[1];
+                debuffedCount += stats[2];
+            }
+
+            // 대표 폭격 시 발사자에게 전투 피해 분석 리포트 HUD 패킷 전송
+            if (strike.isPrimary() && strike.initiator() != null) {
+                ServerPlayer initiator = server.getPlayerList().getPlayer(strike.initiator());
+                if (initiator != null) {
+                    ServerPlayNetworking.send(initiator, new dev.minse.interiorveil.network.BattleReportPayload(
+                            strikeType, kills, totalDamage, debuffedCount, (int) target.x, (int) target.y, (int) target.z
+                    ));
+                }
             }
         }
+    }
+
+    private void sendStrikeBeam(ServerLevel level, Vec3 target, int durationTicks, int color) {
+        dev.minse.interiorveil.network.StrikeBeamPayload beamPayload = new dev.minse.interiorveil.network.StrikeBeamPayload(
+                target.x, (int) target.y, target.z, durationTicks, color
+        );
+        for (ServerPlayer player : level.players()) {
+            ServerPlayNetworking.send(player, beamPayload);
+        }
+    }
+
+    private void spawnDeployableShieldPod(ServerLevel level, BlockPos center, UUID owner) {
+        UUID tempId = UUID.randomUUID();
+        VeilBarrier tempBarrier = new VeilBarrier(
+                tempId,
+                owner,
+                level.dimension().location().toString(),
+                center.getX(),
+                center.getY(),
+                center.getZ(),
+                16,
+                center.getY() - 16,
+                center.getY() + 16,
+                VeilConstants.SHELL_DEPTH,
+                "🛡️ 임시 궤도 방어 돔",
+                4,
+                32,
+                20,
+                64,
+                true,
+                0x00F0FF,
+                0x00F0FF,
+                false,
+                0x00F0FF,
+                new VeilAdvancedSettings(
+                        1, Map.of(), 0, 24000, 200, 200, 100, 100,
+                        false, false, 0x00F0FF, false, 0, 0, 0, 0,
+                        true, true
+                ),
+                4,
+                center.getX(),
+                center.getZ()
+        );
+        barriers.put(tempId, tempBarrier);
+        absoluteBarrierCache.add(tempId);
+        pendingRemovals.put(tempId, new PendingRemoval(tempId, tickCounter + 1200));
     }
 
     private void tickStrikeBeams() {
@@ -1815,8 +2059,9 @@ public final class VeilManager {
                 true
         );
 
+        int[] sculkPings = getSculkPings(source, targetBarrier);
         ServerPlayNetworking.send(player, new VeilTargetMapPayload(
-                barrierId, scanCenterX, scanCenterZ, cellSize, resolution, heights, colors
+                barrierId, scanCenterX, scanCenterZ, cellSize, resolution, heights, colors, sculkPings
         ));
     }
 
@@ -1877,8 +2122,9 @@ public final class VeilManager {
                         heights[i] = 64;
                     }
                     player.displayClientMessage(Component.translatable("message.interiorveil.map_loaded"), true);
+                    int[] sculkPings = getSculkPings(source, barrier);
                     ServerPlayNetworking.send(player, new VeilTargetMapPayload(
-                            barrier.id(), mapData.centerX, mapData.centerZ, cellSize, resolution, heights, colors
+                            barrier.id(), mapData.centerX, mapData.centerZ, cellSize, resolution, heights, colors, sculkPings
                     ));
                     return;
                 }
@@ -1921,9 +2167,25 @@ public final class VeilManager {
                 heights[index] = surfaceY;
             }
         }
+        int[] sculkPings = getSculkPings(source, barrier);
         ServerPlayNetworking.send(player, new VeilTargetMapPayload(
-                barrier.id(), barrier.centerX(), barrier.centerZ(), cellSize, resolution, heights, colors
+                barrier.id(), barrier.centerX(), barrier.centerZ(), cellSize, resolution, heights, colors, sculkPings
         ));
+    }
+
+    private int[] getSculkPings(ServerLevel source, VeilBarrier barrier) {
+        if (barrier == null || source == null || !hasSculkCore(barrier)) {
+            return new int[0];
+        }
+        AABB sculkArea = new AABB(barrier.center()).inflate(128.0);
+        java.util.List<LivingEntity> enemies = source.getEntitiesOfClass(LivingEntity.class, sculkArea,
+                e -> e.isAlive() && isTargetableHostile(e, barrier));
+        int[] pings = new int[enemies.size() * 2];
+        for (int i = 0; i < enemies.size(); i++) {
+            pings[i * 2] = enemies.get(i).getBlockX();
+            pings[i * 2 + 1] = enemies.get(i).getBlockZ();
+        }
+        return pings;
     }
 
     private static int shadeColor(int color, int amount) {
@@ -2029,7 +2291,11 @@ public final class VeilManager {
      * 폭격 충돌 시 사방으로 확산되는 광역 열폭풍(Thermal Shockwave) 발생.
      * 결계 내부(오버월드 결계 영역 및 포켓 차원)에 있는 플레이어 및 엔티티는 모든 피해와 넉백이 완벽하게 면역된다.
      */
-    private void emitThermalShockwave(ServerLevel level, Vec3 target, VeilBarrier strikeBarrier, int bombRadius) {
+    private int[] emitThermalShockwave(ServerLevel level, Vec3 target, VeilBarrier strikeBarrier, int bombRadius) {
+        int kills = 0;
+        int totalDamage = 0;
+        int debuffedCount = 0;
+
         // Zone 2, 3 범위를 3배 이상으로 대폭 확장 (기본 bombRadius=20 기준 thermalRadius = 192m)
         double zone2End = bombRadius * 4.0; // 20m ~ 80m (폭 60m로 3배 확장)
         double thermalRadius = Math.max(192.0, bombRadius * 9.6); // 80m ~ 192m 광역 범위
@@ -2085,8 +2351,12 @@ public final class VeilManager {
                 debuffDuration = (int) (80 + frac * 120);
             }
 
+            boolean wasAlive = entity.isAlive();
             // 1. 거리별 차등 폭발/열폭풍 피해
             entity.hurtServer(level, level.damageSources().explosion(null, null), damage);
+            totalDamage += (int) damage;
+            debuffedCount++;
+            if (wasAlive && entity.isDeadOrDying()) kills++;
 
             // 2. 거리별 차등 발화 효과
             entity.setRemainingFireTicks(Math.max(entity.getRemainingFireTicks(), fireTicks));
@@ -2136,6 +2406,8 @@ public final class VeilManager {
                 }
             }
         }
+
+        return new int[]{totalDamage, kills, debuffedCount};
     }
 
     /**
@@ -2337,7 +2609,7 @@ public final class VeilManager {
     private record PendingRemoval(UUID barrierId, int expiresAtTick) {
     }
 
-    private record PendingStrike(net.minecraft.resources.ResourceKey<Level> dimension, Vec3 origin, Vec3 target, UUID barrierId, int executeAtTick, int strikeType, boolean isPrimary) {
+    private record PendingStrike(net.minecraft.resources.ResourceKey<Level> dimension, Vec3 origin, Vec3 target, UUID barrierId, int executeAtTick, int strikeType, boolean isPrimary, UUID initiator) {
     }
 
     private static void teleportPets(ServerPlayer player, ServerLevel source, ServerLevel destination, double x, double y, double z) {

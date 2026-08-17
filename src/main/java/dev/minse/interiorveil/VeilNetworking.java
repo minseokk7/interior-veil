@@ -32,6 +32,7 @@ final class VeilNetworking {
         PayloadTypeRegistry.playS2C().register(VeilTargetMapPayload.TYPE, VeilTargetMapPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(ForcefieldStatePayload.TYPE, ForcefieldStatePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(StrikeBeamPayload.TYPE, StrikeBeamPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.minse.interiorveil.network.BattleReportPayload.TYPE, dev.minse.interiorveil.network.BattleReportPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(VeilConfigPayload.TYPE, VeilConfigPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(VeilAdminActionPayload.TYPE, VeilAdminActionPayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(

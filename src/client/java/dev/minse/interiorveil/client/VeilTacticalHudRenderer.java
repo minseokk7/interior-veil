@@ -17,6 +17,14 @@ public final class VeilTacticalHudRenderer {
     private VeilTacticalHudRenderer() {
     }
 
+    private static dev.minse.interiorveil.network.BattleReportPayload lastReport = null;
+    private static long reportExpiryTime = 0;
+
+    public static void setBattleReport(dev.minse.interiorveil.network.BattleReportPayload report) {
+        lastReport = report;
+        reportExpiryTime = System.currentTimeMillis() + 5000L;
+    }
+
     public static void register() {
         HudRenderCallback.EVENT.register(VeilTacticalHudRenderer::renderHud);
     }
@@ -25,6 +33,43 @@ public final class VeilTacticalHudRenderer {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.options.hideGui) return;
 
+        int screenWidth = client.getWindow().getGuiScaledWidth();
+        int currentY = 12;
+
+        // 1. 전투 피해 분석 (BDA) 리포트 HUD 카드 (5초간 표시)
+        long now = System.currentTimeMillis();
+        if (lastReport != null && now < reportExpiryTime) {
+            float fade = Math.min(1.0f, (reportExpiryTime - now) / 1000.0f);
+            int bdaWidth = 220;
+            int bdaHeight = 56;
+            int bdaX = screenWidth - bdaWidth - 12;
+            int bdaY = currentY;
+
+            int alpha = (int) (fade * 240);
+            graphics.fill(bdaX, bdaY, bdaX + bdaWidth, bdaY + bdaHeight, (alpha << 24) | 0x0A0E17);
+            // 네온 시안 악센트 라인
+            graphics.fill(bdaX, bdaY, bdaX + bdaWidth, bdaY + 2, (alpha << 24) | 0x00E5FF);
+            graphics.fill(bdaX, bdaY, bdaX + 2, bdaY + bdaHeight, (alpha << 24) | 0x00E5FF);
+
+            String strikeName = switch (lastReport.strikeType()) {
+                case 1 -> "⚡ EMP 전자기 펄스";
+                case 2 -> "📦 궤도 보급 포드";
+                case 3 -> "❄️ 극저온 동결탄";
+                case 4 -> "🕳️ 중력 특이점 탄";
+                case 5 -> "☣️ 나노 낙진탄";
+                case 6 -> "🛡️ 궤도 방어막 포드";
+                default -> "💥 고폭 열폭풍탄";
+            };
+
+            graphics.drawString(client.font, "§b🎯 BDA // 전투 피해 분석 리포트", bdaX + 8, bdaY + 6, 0xFFFFFFFF, true);
+            graphics.drawString(client.font, String.format("§7탄종: §e%s §7[%d, %d]", strikeName, lastReport.x(), lastReport.z()), bdaX + 8, bdaY + 18, 0xFFFFFFFF, false);
+            graphics.drawString(client.font, String.format("§a💀 처치: §f%d마리  §c💥 피해: §f%.0f HP", lastReport.kills(), lastReport.totalDamage()), bdaX + 8, bdaY + 30, 0xFFFFFFFF, false);
+            graphics.drawString(client.font, String.format("§b⚡ 상태이상 제압: §f%d개체", lastReport.debuffedCount()), bdaX + 8, bdaY + 42, 0xFFE0E0E0, false);
+
+            currentY += bdaHeight + 8;
+        }
+
+        // 2. 오르비탈 타겟 락온 / 카운트다운 HUD 카드
         VeilConfigPayload currentConfig = VeilConfigClientState.current();
         UUID barrierId = currentConfig != null ? currentConfig.barrierId() : null;
 
@@ -34,11 +79,10 @@ public final class VeilTacticalHudRenderer {
         long remSec = activeEntry.getRemainingSeconds();
         boolean isPinned = activeEntry.status() == VeilStrikeTargetTracker.Status.PINNED;
 
-        int screenWidth = client.getWindow().getGuiScaledWidth();
         int panelWidth = 190;
         int panelHeight = 44;
         int x = screenWidth - panelWidth - 12;
-        int y = 12;
+        int y = currentY;
 
         // 사이버네틱 글래스모피즘 반투명 배경
         graphics.fill(x, y, x + panelWidth, y + panelHeight, 0xD00A0E17);

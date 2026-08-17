@@ -76,6 +76,12 @@ public final class InteriorVeilClient implements ClientModInitializer {
                     VeilStrikeTargetTracker.recordStrike(null, (int) payload.targetX(), (int) payload.targetY(), (int) payload.targetZ(), 20);
                 })
         );
+        ClientPlayNetworking.registerGlobalReceiver(
+                dev.minse.interiorveil.network.BattleReportPayload.TYPE,
+                (payload, context) -> context.client().execute(() -> {
+                    VeilTacticalHudRenderer.setBattleReport(payload);
+                })
+        );
         VeilKeyBindings.register();
         VeilXaeroIntegration.initialize();
         VeilTacticalHudRenderer.register();

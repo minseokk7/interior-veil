@@ -25,14 +25,30 @@ public final class VeilXaeroIntegration {
     private VeilXaeroIntegration() {
     }
 
-    private static int selectedStrikeType = 0; // 0: 고폭탄, 1: EMP탄, 2: 보급포드
+    private static int selectedStrikeType = 0; // 0: 고폭탄, 1: EMP탄, 2: 보급포드, 3: 동결탄, 4: 특이점탄, 5: 낙진탄, 6: 방어포드
     private static dev.minse.interiorveil.StrikeFormation selectedFormation = dev.minse.interiorveil.StrikeFormation.SINGLE;
 
     private static String getStrikeTypeButtonText() {
         return switch (selectedStrikeType) {
             case 1 -> "§b⚡ EMP탄";
             case 2 -> "§a📦 보급포드";
+            case 3 -> "§9❄️ 동결탄";
+            case 4 -> "§5🕳️ 특이점";
+            case 5 -> "§2☣️ 낙진탄";
+            case 6 -> "§6🛡️ 방어포드";
             default -> "§c💥 고폭탄";
+        };
+    }
+
+    private static String getStrikeTypeLabel() {
+        return switch (selectedStrikeType) {
+            case 1 -> "⚡ EMP 전자기 펄스탄";
+            case 2 -> "📦 궤도 보급 포드";
+            case 3 -> "❄️ 극저온 동결탄";
+            case 4 -> "🕳️ 중력 특이점 탄";
+            case 5 -> "☣️ 나노 낙진탄";
+            case 6 -> "🛡️ 궤도 방어막 포드";
+            default -> "💥 고폭 열폭풍탄";
         };
     }
 
@@ -52,15 +68,14 @@ public final class VeilXaeroIntegration {
                         ? VeilKeyBindings.ORBITAL_STRIKE.getTranslatedKeyMessage().getString()
                         : "V";
 
-                // 탄종 선택 토글 버튼 (클릭 시 고폭탄 -> EMP탄 -> 보급포드 순환)
+                // 탄종 선택 토글 버튼 (클릭 시 7종 순환)
                 Button typeButton = Button.builder(
                         Component.literal(getStrikeTypeButtonText()),
                         btn -> {
-                            selectedStrikeType = (selectedStrikeType + 1) % 3;
+                            selectedStrikeType = (selectedStrikeType + 1) % 7;
                             btn.setMessage(Component.literal(getStrikeTypeButtonText()));
                             if (client.player != null) {
-                                String label = selectedStrikeType == 1 ? "⚡ EMP 전자기 펄스탄" : (selectedStrikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍탄");
-                                client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + label + "§7 선택됨"), true);
+                                client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + getStrikeTypeLabel() + "§7 선택됨"), true);
                             }
                         }
                 ).bounds(scaledWidth - 325, 6, 95, 20).build();
@@ -104,11 +119,10 @@ public final class VeilXaeroIntegration {
 
                     // B 키를 누르면 지도 화면에서 즉시 탄종 빠른 순환 전환!
                     if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_B) {
-                        selectedStrikeType = (selectedStrikeType + 1) % 3;
+                        selectedStrikeType = (selectedStrikeType + 1) % 7;
                         typeButton.setMessage(Component.literal(getStrikeTypeButtonText()));
                         if (client.player != null) {
-                            String label = selectedStrikeType == 1 ? "⚡ EMP 전자기 펄스탄" : (selectedStrikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍탄");
-                            client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + label + "§7 선택됨"), true);
+                            client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + getStrikeTypeLabel() + "§7 선택됨"), true);
                         }
                         return false;
                     }

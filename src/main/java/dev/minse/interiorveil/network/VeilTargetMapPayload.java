@@ -13,8 +13,13 @@ public record VeilTargetMapPayload(
         int cellSize,
         int resolution,
         int[] heights,
-        int[] colors
+        int[] colors,
+        int[] sculkPings // [x1, z1, x2, z2, ...] 스컬크 코어로 탐지된 적 좌표 쌍
 ) implements CustomPacketPayload {
+    public VeilTargetMapPayload(UUID barrierId, int centerX, int centerZ, int cellSize, int resolution, int[] heights, int[] colors) {
+        this(barrierId, centerX, centerZ, cellSize, resolution, heights, colors, new int[0]);
+    }
+
     public static final Type<VeilTargetMapPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath("interiorveil", "target_map")
     );
@@ -27,6 +32,11 @@ public record VeilTargetMapPayload(
         int centerZ = buffer.readInt();
         int cellSize = buffer.readVarInt();
         int resolution = buffer.readVarInt();
+        int pingCount = buffer.readVarInt();
+        int[] pings = new int[pingCount];
+        for (int i = 0; i < pingCount; i++) {
+            pings[i] = buffer.readInt();
+        }
         byte[] compressed = buffer.readByteArray();
         
         int expected = resolution * resolution;
@@ -35,7 +45,7 @@ public record VeilTargetMapPayload(
         }
         
         int[][] decompressed = decompress(compressed, expected);
-        return new VeilTargetMapPayload(barrierId, centerX, centerZ, cellSize, resolution, decompressed[0], decompressed[1]);
+        return new VeilTargetMapPayload(barrierId, centerX, centerZ, cellSize, resolution, decompressed[0], decompressed[1], pings);
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
@@ -44,6 +54,11 @@ public record VeilTargetMapPayload(
         buffer.writeInt(centerZ);
         buffer.writeVarInt(cellSize);
         buffer.writeVarInt(resolution);
+        int[] pings = (sculkPings != null) ? sculkPings : new int[0];
+        buffer.writeVarInt(pings.length);
+        for (int p : pings) {
+            buffer.writeInt(p);
+        }
         buffer.writeByteArray(compress(heights, colors));
     }
 
