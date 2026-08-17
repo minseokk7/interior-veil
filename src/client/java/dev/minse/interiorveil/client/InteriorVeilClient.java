@@ -121,7 +121,7 @@ public final class InteriorVeilClient implements ClientModInitializer {
             }
         });
         WorldRenderEvents.END_EXTRACTION.register(MirrorPlayers::extractRenderStates);
-        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+        WorldRenderEvents.END_MAIN.register(context -> {
             VeilStrikeBeamRenderer.render(context);
             VeilForcefieldRenderer.render(context);
         });
