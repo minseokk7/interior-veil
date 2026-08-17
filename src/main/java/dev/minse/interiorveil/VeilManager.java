@@ -2091,6 +2091,10 @@ public final class VeilManager {
                             || state.getBlock().getExplosionResistance() >= 3600.0F) {
                         continue;
                     }
+                    // 🛡️ 결계 및 방어막 포드 돔 내부 블럭은 폭탄/폭격에 의해 절대 파괴되지 않음
+                    if (isBlockProtectedByBarrier(level, pos)) {
+                        continue;
+                    }
                     level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
                 }
             }
@@ -2775,6 +2779,24 @@ public final class VeilManager {
                 if (barrier.advanced().absoluteBarrier()) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    public static boolean isBlockProtectedByBarrier(Level level, BlockPos pos) {
+        if (InteriorVeil.manager == null) {
+            return false;
+        }
+        for (VeilBarrier barrier : InteriorVeil.manager.barriers.values()) {
+            if (!barrier.sourceKey().equals(level.dimension())) continue;
+            double dx = pos.getX() + 0.5 - (barrier.centerX() + 0.5);
+            double dy = pos.getY() + 0.5 - barrier.centerY();
+            double dz = pos.getZ() + 0.5 - (barrier.centerZ() + 0.5);
+            double r = barrier.radius();
+            // 구형 또는 반구형 돔 영역 내부 판정
+            if ((dx * dx + dz * dz) <= r * r && dy >= -r && dy <= r) {
+                return true;
             }
         }
         return false;
