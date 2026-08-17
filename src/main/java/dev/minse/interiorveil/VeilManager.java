@@ -628,38 +628,29 @@ public final class VeilManager {
     private void tickOutsidePlayer(ServerPlayer player) {
         // 1. 오버월드 포스필드 렌더링 (오직 방어 모드일 때만 렌더링)
         if (tickCounter % 5 == 0) {
-            VeilBarrier nearbyAbsolute = barriers.values().stream()
-                    .filter(barrier -> barrier.sourceKey().location().equals(player.level().dimension().location()))
-                    .filter(barrier -> barrier.advanced().absoluteBarrier())
-                    .filter(barrier -> {
-                        double maxDist = Math.max(256.0, barrier.radius() * 4.0);
-                        return BarrierGeometry.horizontalDistanceSquared(
-                                player.getX(), player.getZ(), barrier.centerX() + 0.5, barrier.centerZ() + 0.5
-                        ) <= maxDist * maxDist;
-                    })
-                    .min(Comparator.comparingDouble(barrier -> BarrierGeometry.horizontalDistanceSquared(
-                            player.getX(), player.getZ(), barrier.centerX() + 0.5, barrier.centerZ() + 0.5
-                    )))
-                    .orElse(null);
+            java.util.List<dev.minse.interiorveil.network.ForcefieldStatePayload.DomeEntry> domeList = new java.util.ArrayList<>();
+            for (VeilBarrier barrier : barriers.values()) {
+                if (!barrier.sourceKey().location().equals(player.level().dimension().location())) continue;
+                if (!barrier.boundaryVisible()) continue;
+                if (!barrier.advanced().absoluteBarrier() && !pendingRemovals.containsKey(barrier.id())) continue;
 
-            if (nearbyAbsolute != null) {
-                int density = Math.max(64, nearbyAbsolute.advanced().boundaryDensity());
-                int color = nearbyAbsolute.boundaryColor() != 0 ? nearbyAbsolute.boundaryColor() : 0x33FFFF;
-                boolean showField = nearbyAbsolute.boundaryVisible();
-                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new dev.minse.interiorveil.network.ForcefieldStatePayload(
-                        showField,
-                        nearbyAbsolute.centerX(),
-                        nearbyAbsolute.centerZ(),
-                        nearbyAbsolute.centerY(),
-                        nearbyAbsolute.radius(),
-                        color,
-                        density
-                ));
-            } else {
-                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new dev.minse.interiorveil.network.ForcefieldStatePayload(
-                        false, 0, 0, 0, 0, 0, 0
-                ));
+                double maxDist = Math.max(256.0, barrier.radius() * 4.0);
+                if (BarrierGeometry.horizontalDistanceSquared(
+                        player.getX(), player.getZ(), barrier.centerX() + 0.5, barrier.centerZ() + 0.5
+                ) <= maxDist * maxDist) {
+                    int density = Math.max(64, barrier.advanced().boundaryDensity());
+                    int color = barrier.boundaryColor() != 0 ? barrier.boundaryColor() : (pendingRemovals.containsKey(barrier.id()) ? 0xFFD700 : 0x33FFFF);
+                    domeList.add(new dev.minse.interiorveil.network.ForcefieldStatePayload.DomeEntry(
+                            barrier.centerX(),
+                            barrier.centerY(),
+                            barrier.centerZ(),
+                            barrier.radius(),
+                            color,
+                            density
+                    ));
+                }
             }
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new dev.minse.interiorveil.network.ForcefieldStatePayload(domeList));
         }
 
         // 2. 오버월드 안개(Fog) 상태 계산 및 패킷 전송
@@ -1930,19 +1921,19 @@ public final class VeilManager {
                 center.getY() - 16,
                 center.getY() + 16,
                 VeilConstants.SHELL_DEPTH,
-                "🛡️ 임시 궤도 방어 돔",
+                "🛡️ 5분 전술 방어 돔",
                 4,
                 32,
                 20,
                 64,
                 true,
-                0x00F0FF,
-                0x00F0FF,
+                0xFFD700,
+                0xFFD700,
                 false,
-                0x00F0FF,
+                0xFFD700,
                 new VeilAdvancedSettings(
-                        1, Map.of(), 0, 24000, 200, 200, 100, 100,
-                        false, false, 0x00F0FF, false, 0, 0, 0, 0,
+                        1, Map.of(), 0, 24000, 200, 200, 140, 100,
+                        false, false, 0xFFD700, false, 0, 0, 0, 0,
                         true, true
                 ),
                 4,
@@ -1951,7 +1942,7 @@ public final class VeilManager {
         );
         barriers.put(tempId, tempBarrier);
         absoluteBarrierCache.add(tempId);
-        pendingRemovals.put(tempId, new PendingRemoval(tempId, tickCounter + 1200));
+        pendingRemovals.put(tempId, new PendingRemoval(tempId, tickCounter + 6000));
     }
 
     private void tickStrikeBeams() {

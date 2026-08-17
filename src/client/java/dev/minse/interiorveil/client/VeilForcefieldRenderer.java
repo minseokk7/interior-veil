@@ -39,17 +39,18 @@ public class VeilForcefieldRenderer {
         VertexConsumer consumer = context.consumers().getBuffer(RenderType.lightning());
         Vec3 camera = client.gameRenderer.getMainCamera().getPosition();
 
-        double radius = state.radius();
-        double centerY = state.centerY();
-        
-        int boundaryAlpha = Math.max(40, Math.min(130, (int) (state.density() * 0.5f)));
+        for (dev.minse.interiorveil.network.ForcefieldStatePayload.DomeEntry dome : state.domes()) {
+            double radius = dome.radius();
+            double centerY = dome.centerY();
+            int boundaryAlpha = Math.max(40, Math.min(150, (int) (dome.density() * 0.5f)));
 
-        int color = state.color();
-        int r = (color >> 16) & 0xFF;
-        int g = (color >> 8) & 0xFF;
-        int b = color & 0xFF;
-        
-        drawEllipsoid(consumer, pose, camera, radius, centerY, state.centerX(), state.centerZ(), r, g, b, boundaryAlpha);
+            int color = dome.color();
+            int r = (color >> 16) & 0xFF;
+            int g = (color >> 8) & 0xFF;
+            int b = color & 0xFF;
+
+            drawEllipsoid(consumer, pose, camera, radius, centerY, dome.centerX(), dome.centerZ(), r, g, b, boundaryAlpha);
+        }
 
         if (context.consumers() instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bufferSource) {
             bufferSource.endBatch(RenderType.lightning());

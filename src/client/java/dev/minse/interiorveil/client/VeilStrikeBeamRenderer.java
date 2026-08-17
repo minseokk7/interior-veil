@@ -803,9 +803,14 @@ public final class VeilStrikeBeamRenderer {
 
     private static boolean isInsideVeil(double x, double z, dev.minse.interiorveil.network.ForcefieldStatePayload veilState) {
         if (veilState == null || !veilState.active()) return false;
-        double dx = x - veilState.centerX();
-        double dz = z - veilState.centerZ();
-        return (dx * dx + dz * dz) < (veilState.radius() * veilState.radius());
+        for (dev.minse.interiorveil.network.ForcefieldStatePayload.DomeEntry dome : veilState.domes()) {
+            double dx = x - dome.centerX();
+            double dz = z - dome.centerZ();
+            if ((dx * dx + dz * dz) < (dome.radius() * dome.radius())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
