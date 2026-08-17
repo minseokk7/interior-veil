@@ -472,7 +472,7 @@ public final class VeilStrikeBeamRenderer {
                 int bx1 = (int) Math.floor(wx1);
                 int bz1 = (int) Math.floor(wz1);
                 int h1 = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, bx1, bz1);
-                if (h1 > level.getMinBuildHeight()) {
+                if (h1 > level.getMinY()) {
                     groundY1 = h1 + 0.15;
                 }
             }
@@ -485,7 +485,7 @@ public final class VeilStrikeBeamRenderer {
                 int bx2 = (int) Math.floor(wx2);
                 int bz2 = (int) Math.floor(wz2);
                 int h2 = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, bx2, bz2);
-                if (h2 > level.getMinBuildHeight()) {
+                if (h2 > level.getMinY()) {
                     groundY2 = h2 + 0.15;
                 }
             }
