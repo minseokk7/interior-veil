@@ -1914,16 +1914,22 @@ public final class VeilManager {
                     if (wasAlive && entity.isDeadOrDying()) kills++;
                 }
 
-                // 주변 물 결빙
+                // 주변 물 결빙 (단, 결계 및 전술 방어 돔 내부의 물은 절대로 결빙되지 않음)
                 int fRad = Math.min(24, (int) (bombRadius * 1.2));
                 BlockPos.MutableBlockPos mPos = new BlockPos.MutableBlockPos();
                 for (int dx = -fRad; dx <= fRad; dx++) {
                     for (int dz = -fRad; dz <= fRad; dz++) {
                         if (dx * dx + dz * dz > fRad * fRad) continue;
-                        int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) target.x + dx, (int) target.z + dz);
-                        mPos.set((int) target.x + dx, surfaceY - 1, (int) target.z + dz);
-                        if (level.getBlockState(mPos).is(Blocks.WATER)) {
-                            level.setBlock(mPos, Blocks.FROSTED_ICE.defaultBlockState(), 3);
+                        int px = (int) target.x + dx;
+                        int pz = (int) target.z + dz;
+                        int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, px, pz);
+                        for (int dy = surfaceY + 1; dy >= surfaceY - 3; dy--) {
+                            mPos.set(px, dy, pz);
+                            if (level.getBlockState(mPos).is(Blocks.WATER)) {
+                                if (!isBlockProtectedByBarrier(level, mPos)) {
+                                    level.setBlock(mPos, Blocks.FROSTED_ICE.defaultBlockState(), 3);
+                                }
+                            }
                         }
                     }
                 }
@@ -2810,11 +2816,15 @@ public final class VeilManager {
         }
         for (VeilBarrier barrier : InteriorVeil.manager.barriers.values()) {
             if (!barrier.sourceKey().equals(level.dimension())) continue;
+            // 1. 타원체 지오메트리 내부 검사
+            if (barrier.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 1.0, false)) {
+                return true;
+            }
+            // 2. 구형 또는 반구형 돔 영역 내부 판정
             double dx = pos.getX() + 0.5 - (barrier.centerX() + 0.5);
             double dy = pos.getY() + 0.5 - barrier.centerY();
             double dz = pos.getZ() + 0.5 - (barrier.centerZ() + 0.5);
             double r = barrier.radius();
-            // 구형 또는 반구형 돔 영역 내부 판정
             if ((dx * dx + dz * dz) <= r * r && dy >= -r && dy <= r) {
                 return true;
             }
