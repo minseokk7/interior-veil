@@ -22,11 +22,11 @@ public abstract class GameRendererMixin {
     private Minecraft minecraft;
 
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
-    private void interiorveil$applyTargetingLaserSuperZoom(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
+    private void interiorveil$applyTargetingLaserSuperZoom(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Float> cir) {
         if (this.minecraft.player != null && this.minecraft.player.isUsingItem() && this.minecraft.player.getUseItem().is(VeilItems.TARGETING_LASER)) {
-            double currentFov = cir.getReturnValue();
+            float currentFov = cir.getReturnValue();
             // isScoping()으로 적용된 10배율 줌에서 추가 2배 확대 -> 총 20배율 초정밀 줌
-            cir.setReturnValue(currentFov * 0.5);
+            cir.setReturnValue(currentFov * 0.5F);
         }
     }
 }
