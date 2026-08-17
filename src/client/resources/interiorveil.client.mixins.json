@@ -6,7 +6,9 @@
     "BeaconRendererMixin",
     "CameraMixin",
     "FogRendererMixin",
-    "GuiMapMixin"
+    "GameRendererMixin",
+    "GuiMapMixin",
+    "PlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

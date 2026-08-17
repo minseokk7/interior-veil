@@ -30,7 +30,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public class TargetingLaserItem extends Item {
     private static final int LOCK_ON_TICKS = 20; // 1초 조준 시 락온 완료
-    private static final double MAX_TARGET_RANGE = 300.0D; // 최대 조준 거리 300블록
+    private static final double MAX_TARGET_RANGE = 1000.0D; // 최대 조준 거리 1000블록 초장거리 지원
 
     public TargetingLaserItem(Properties properties) {
         super(properties);
