@@ -1450,10 +1450,11 @@ public final class VeilManager {
 
             Vec3 subTarget = new Vec3(tx + 0.5, ty + 0.5, tz + 0.5);
             int executeTick = tickCounter + 100 + (i * 3);
-            pendingStrikes.add(new PendingStrike(source.dimension(), origin, subTarget, barrier.id(), executeTick, strikeType));
+            boolean isPrimary = (i == 0); // 0번째만 대표 카운트다운 및 도달 타이틀 담당
+            pendingStrikes.add(new PendingStrike(source.dimension(), origin, subTarget, barrier.id(), executeTick, strikeType, isPrimary));
         }
 
-        // 발사 즉시 첫 번째 '5' 카운트다운 타이틀 전송
+        // 발사 즉시 첫 번째 '5' 카운트다운 타이틀 전송 (1회만 전송)
         net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket initAnim =
                 new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(0, 20, 5);
         net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket initTitle =
@@ -1490,8 +1491,8 @@ public final class VeilManager {
             if (tickCounter < strike.executeAtTick()) {
                 int ticksLeft = strike.executeAtTick() - tickCounter;
 
-                // 매 초(20틱)마다 화면 중앙에 거대한 빨간색 카운트다운 타이틀 전송 (4, 3, 2, 1)
-                if (ticksLeft < 100 && ticksLeft % 20 == 0 && ticksLeft > 0) {
+                // 대표(isPrimary) 폭격만 매 초(20틱)마다 화면 중앙에 거대한 빨간색 카운트다운 타이틀 전송 (4, 3, 2, 1)
+                if (strike.isPrimary() && ticksLeft < 100 && ticksLeft % 20 == 0 && ticksLeft > 0) {
                     int seconds = ticksLeft / 20;
                     net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket anim =
                             new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(0, 20, 5);
@@ -1523,11 +1524,13 @@ public final class VeilManager {
                     }
                 }
 
-                // 경고음 및 파티클 (Telegraphing)
+                // 경고음 및 파티클 (Telegraphing) - 사운드는 대표 폭격만, 레이저 파티클은 전 탄환 위치에 생성
                 if (tickCounter % 5 == 0) {
-                    level.playSound(null, strike.target().x, strike.target().y, strike.target().z,
-                            net.minecraft.sounds.SoundEvents.GUARDIAN_ATTACK,
-                            net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 1.5F + (tickCounter % 10) * 0.1F);
+                    if (strike.isPrimary()) {
+                        level.playSound(null, strike.target().x, strike.target().y, strike.target().z,
+                                net.minecraft.sounds.SoundEvents.GUARDIAN_ATTACK,
+                                net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 1.5F + (tickCounter % 10) * 0.1F);
+                    }
                     
                     DustParticleOptions warningParticle = new DustParticleOptions(0xFF0000, 2.0F);
                     for (int i = 0; i < 20; i++) {
@@ -1540,18 +1543,20 @@ public final class VeilManager {
 
             pendingStrikes.remove(strike);
             
-            // 폭격 도달 알림 타이틀
-            net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket anim =
-                    new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(0, 30, 10);
-            net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket title =
-                    new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
-                            Component.literal("💥 폭격 도달 💥").withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.BOLD)
-                    );
-            for (ServerPlayer player : level.players()) {
-                double distSq = BarrierGeometry.horizontalDistanceSquared(player.getX(), player.getZ(), strike.target().x, strike.target().z);
-                if (distSq <= 256.0 * 256.0 || (barrier != null && holdsKeyFor(player, barrier))) {
-                    player.connection.send(anim);
-                    player.connection.send(title);
+            // 폭격 도달 알림 타이틀 (대표 폭격 1회만 전송)
+            if (strike.isPrimary()) {
+                net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket anim =
+                        new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(0, 30, 10);
+                net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket title =
+                        new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                                Component.literal("💥 폭격 도달 💥").withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.BOLD)
+                        );
+                for (ServerPlayer player : level.players()) {
+                    double distSq = BarrierGeometry.horizontalDistanceSquared(player.getX(), player.getZ(), strike.target().x, strike.target().z);
+                    if (distSq <= 256.0 * 256.0 || (barrier != null && holdsKeyFor(player, barrier))) {
+                        player.connection.send(anim);
+                        player.connection.send(title);
+                    }
                 }
             }
 
@@ -2278,7 +2283,7 @@ public final class VeilManager {
     private record PendingRemoval(UUID barrierId, int expiresAtTick) {
     }
 
-    private record PendingStrike(net.minecraft.resources.ResourceKey<Level> dimension, Vec3 origin, Vec3 target, UUID barrierId, int executeAtTick, int strikeType) {
+    private record PendingStrike(net.minecraft.resources.ResourceKey<Level> dimension, Vec3 origin, Vec3 target, UUID barrierId, int executeAtTick, int strikeType, boolean isPrimary) {
     }
 
     private static void teleportPets(ServerPlayer player, ServerLevel source, ServerLevel destination, double x, double y, double z) {
