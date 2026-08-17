@@ -1668,7 +1668,8 @@ public final class VeilManager {
             int ty = source.getHeight(Heightmap.Types.MOTION_BLOCKING, tx, tz);
             if (ty <= source.getMinY()) ty = y;
 
-            Vec3 subTarget = new Vec3(tx + 0.5, ty + 0.5, tz + 0.5);
+            Vec3 rawTarget = new Vec3(tx + 0.5, ty + 0.5, tz + 0.5);
+            Vec3 subTarget = adjustTargetToBarrierDomeSurface(source, rawTarget);
             int executeTick = tickCounter + 100 + (i * 3);
             boolean isPrimary = (i == 0); // 0번째만 대표 카운트다운 및 도달 타이틀 담당
             pendingStrikes.add(new PendingStrike(source.dimension(), origin, subTarget, barrier.id(), executeTick, strikeType, isPrimary, player.getUUID()));
@@ -1782,8 +1783,31 @@ public final class VeilManager {
 
             // 실제 폭격 로직 실행
             Vec3 origin = strike.origin();
-            Vec3 target = strike.target();
+            Vec3 rawTarget = strike.target();
+            Vec3 target = adjustTargetToBarrierDomeSurface(level, rawTarget);
+            boolean hitDomeSurface = (target.y > rawTarget.y + 0.1);
             if (barrier == null) continue;
+
+            // 🛡️ 결계/방어 돔 상단 외벽에 폭격이 충돌하여 요격된 경우의 특수 방어막 연출
+            if (hitDomeSurface) {
+                BlockPos cPos = BlockPos.containing(target);
+                level.playSound(null, cPos, SoundEvents.SHIELD_BLOCK.value(), SoundSource.BLOCKS, 8.0F, 1.2F);
+                level.playSound(null, cPos, SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 6.0F, 1.6F);
+                for (int i = 0; i < 30; i++) {
+                    double angle = i * Math.PI * 2 / 30;
+                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK, target.x, target.y, target.z, 2, Math.cos(angle) * 2.5, 0.4, Math.sin(angle) * 2.5, 0.15);
+                    level.sendParticles(ParticleTypes.END_ROD, target.x, target.y + 0.2, target.z, 1, 0.1, 0.1, 0.1, 0.05);
+                }
+                for (ServerPlayer sp : level.players()) {
+                    if (sp.distanceToSqr(target) <= 128.0 * 128.0) {
+                        sp.displayClientMessage(
+                                Component.literal(String.format("🛡️ [결계 돔 방어막] 궤도 폭격이 결계 외벽 표면(고도 Y: %d)에서 완벽하게 요격되었습니다!", (int) target.y))
+                                        .withStyle(net.minecraft.ChatFormatting.AQUA, net.minecraft.ChatFormatting.BOLD),
+                                true
+                        );
+                    }
+                }
+            }
 
             int strikeType = strike.strikeType();
             int bombRadius = barrier.advanced().strikeRadius();
@@ -2800,6 +2824,30 @@ public final class VeilManager {
             }
         }
         return false;
+    }
+
+    /**
+     * 궤도 폭격 타겟 좌표가 결계 또는 방어 돔 영역 내부인 경우,
+     * 폭격이 결계 내부로 파고들지 못하도록 결계 돔 상단 표면(Dome Ceiling Surface) 높이로 착탄 좌표를 보정한다.
+     */
+    public Vec3 adjustTargetToBarrierDomeSurface(ServerLevel level, Vec3 target) {
+        if (target == null) return target;
+        for (VeilBarrier barrier : barriers.values()) {
+            if (!barrier.sourceKey().equals(level.dimension())) continue;
+            double cx = barrier.centerX() + 0.5;
+            double cz = barrier.centerZ() + 0.5;
+            double dx = target.x - cx;
+            double dz = target.z - cz;
+            double hDistSq = dx * dx + dz * dz;
+            double r = barrier.radius();
+            if (hDistSq < r * r) {
+                double domeCeilingY = barrier.centerY() + Math.sqrt(r * r - hDistSq);
+                if (target.y < domeCeilingY) {
+                    return new Vec3(target.x, domeCeilingY + 0.2, target.z);
+                }
+            }
+        }
+        return target;
     }
 
     public static VeilBarrier getBlockingBarrierForProjectile(net.minecraft.world.entity.projectile.Projectile projectile, Vec3 pos) {
