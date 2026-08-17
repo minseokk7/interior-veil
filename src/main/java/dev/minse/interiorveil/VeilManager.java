@@ -401,8 +401,10 @@ public final class VeilManager {
                 && player.distanceToSqr(barrier.getPocketX() + 0.5, barrier.centerY() + 0.5, barrier.getPocketZ() + 0.5) <= 64.0;
         
         boolean holdingKey = holdsKeyFor(player, barrier);
+        boolean holdingMap = player.getMainHandItem().is(VeilItems.TACTICAL_MAP) || player.getOffhandItem().is(VeilItems.TACTICAL_MAP);
         
-        return insidePocket || holdingKey;
+        // 소유자나 관리자는 전술 패드 소지, 열쇠 소지, 포켓 차원 내부, 방어 모드 등 어디서든 조작/폭격 가능
+        return insidePocket || holdingKey || holdingMap || barrier.advanced().absoluteBarrier() || barrier.owner().equals(player.getUUID());
     }
 
     InteractionResult openConfig(ServerPlayer player, VeilBarrier barrier, boolean forceOpen) {
@@ -1603,16 +1605,8 @@ public final class VeilManager {
         Vec3 origin = Vec3.atCenterOf(barrier.center()).add(0.0, 1.0, 0.0);
         Vec3 mainTarget = new Vec3(x + 0.5, y + 0.5, z + 0.5);
         double distance = origin.distanceTo(mainTarget);
-        if (distance > 1024.0 || distance < 1.0 || y < source.getMinY() || y >= source.getMaxY()) {
+        if (distance > 1024.0 || y < source.getMinY() || y >= source.getMaxY()) {
             player.displayClientMessage(Component.translatable("message.interiorveil.laser_range"), true);
-            return;
-        }
-
-        // 결계 반경 + 16블럭 안쪽은 폭격 금지
-        double horizontalDist = BarrierGeometry.horizontalDistanceSquared(
-                x + 0.5, z + 0.5, barrier.centerX() + 0.5, barrier.centerZ() + 0.5);
-        if (horizontalDist <= Math.pow(barrier.radius() + 16.0, 2)) {
-            player.displayClientMessage(Component.translatable("message.interiorveil.laser_too_close"), true);
             return;
         }
 
