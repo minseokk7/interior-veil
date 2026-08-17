@@ -377,63 +377,62 @@ public final class VeilStrikeBeamRenderer {
             }
         }
 
-        // --- 3. [High-Altitude Mach Shockwave Discs] 상공 200m 고고도 수평 팽창 마하 디스크 링 ---
-        // (1) 메인 초고속 마하 디스크 링 (0~65틱, 반경 0 -> 280m)
-        if (elapsed < 65) {
-            float p1 = (float) elapsed / 65.0f;
-            double r1 = Math.pow(p1, 0.55) * 280.0;
-            float a1 = (1.0f - p1) * 0.95f;
-            if (a1 > 0.01f && r1 > 1.0) {
-                int nodes = 72;
-                for (int i = 0; i < nodes; i++) {
-                    double angle = (i * 2.0 * Math.PI / nodes) + anim * 0.06;
-                    double px = beam.x + Math.cos(angle) * r1;
-                    double pz = beam.z + Math.sin(angle) * r1;
-                    double py = empCenterY;
-                    float size = (float) (6.0 + p1 * 14.0);
+        // --- 3. [10-Layer Concentric Mach Shockwave Rings] 상공 200m에서 연속으로 퍼져나가는 10중 마하 디스크 고리 ---
+        int ringCount = 10;
+        int ringInterval = 5; // 고리 간 5틱(0.25초) 간격으로 연속 생성
+        int ringLifetime = 70; // 각 고리당 70틱(3.5초) 동안 초고속 팽창
 
-                    // 얇고 예리한 마하 디스크 링 선
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 245, 255, (int) (255 * a1));
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.4f, 255, 255, 255, (int) (255 * a1));
+        for (int r = 0; r < ringCount; r++) {
+            int ringStartTick = r * ringInterval;
+            int ringElapsed = elapsed - ringStartTick;
+            if (ringElapsed >= 0 && ringElapsed < ringLifetime) {
+                float p = (float) ringElapsed / ringLifetime;
+                // 반경 0m -> 300m로 마하 속도로 팽창
+                double radius = Math.pow(p, 0.58) * 300.0;
+                float alpha = (1.0f - p) * 0.95f;
+
+                if (alpha > 0.01f && radius > 1.0) {
+                    int nodes = Math.min(84, Math.max(36, (int) (radius * 0.45)));
+                    int ringR = (r % 2 == 0) ? 0 : 50;
+                    int ringG = (r % 2 == 0) ? 245 : 210;
+                    int ringB = 255;
+
+                    for (int i = 0; i < nodes; i++) {
+                        double angle = (i * 2.0 * Math.PI / nodes) + anim * (0.04 + r * 0.006);
+                        double px = beam.x + Math.cos(angle) * radius;
+                        double pz = beam.z + Math.sin(angle) * radius;
+                        double py = empCenterY + Math.sin(i * 2.0 + anim + r) * 1.2;
+                        float size = (float) (5.0 + p * 14.0);
+
+                        // 얇고 날카로운 푸른 마하 링 선
+                        drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, ringR, ringG, ringB, (int) (245 * alpha));
+                        // 하얀 코어 빛
+                        drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.4f, 235, 255, 255, (int) (255 * alpha));
+                    }
                 }
             }
         }
 
-        // (2) 2차 후속 펄스 디스크 (10~80틱, 반경 0 -> 220m)
-        if (elapsed >= 10 && elapsed < 80) {
-            float p2 = (float) (elapsed - 10) / 70.0f;
-            double r2 = Math.pow(p2, 0.65) * 220.0;
-            float a2 = (1.0f - p2) * 0.85f;
-            if (a2 > 0.01f && r2 > 1.0) {
-                int nodes = 56;
-                for (int i = 0; i < nodes; i++) {
-                    double angle = (i * 2.0 * Math.PI / nodes) - anim * 0.04;
-                    double px = beam.x + Math.cos(angle) * r2;
-                    double pz = beam.z + Math.sin(angle) * r2;
-                    double py = empCenterY;
-                    float size = (float) (8.0 + p2 * 16.0);
+        // --- 4. [Ground Shockwave Ring] 지상 착탄 지점 10중 연속 지상 마하 링 ---
+        for (int grIdx = 0; grIdx < 6; grIdx++) {
+            int gStart = grIdx * 6;
+            int gElapsed = elapsed - gStart;
+            if (gElapsed >= 0 && gElapsed < 55) {
+                float gp = (float) gElapsed / 55.0f;
+                double gr = Math.pow(gp, 0.6) * 180.0;
+                float ga = (1.0f - gp) * 0.9f;
+                if (ga > 0.01f && gr > 1.0) {
+                    int nodes = Math.min(64, Math.max(32, (int) (gr * 0.4)));
+                    for (int i = 0; i < nodes; i++) {
+                        double angle = (i * 2.0 * Math.PI / nodes);
+                        double px = beam.x + Math.cos(angle) * gr;
+                        double pz = beam.z + Math.sin(angle) * gr;
+                        double py = beam.y + 0.6;
+                        float size = (float) (4.5 + gp * 10.0);
 
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 20, 180, 255, (int) (230 * a2));
-                }
-            }
-        }
-
-        // --- 4. [Ground Shockwave Ring] 지상 착탄 순간 수평으로 퍼져나가는 지상 마하 링 ---
-        if (elapsed < 50) {
-            float gp = (float) elapsed / 50.0f;
-            double gr = Math.pow(gp, 0.58) * 160.0;
-            float ga = (1.0f - gp) * 0.9f;
-            if (ga > 0.01f && gr > 1.0) {
-                int nodes = 48;
-                for (int i = 0; i < nodes; i++) {
-                    double angle = (i * 2.0 * Math.PI / nodes);
-                    double px = beam.x + Math.cos(angle) * gr;
-                    double pz = beam.z + Math.sin(angle) * gr;
-                    double py = beam.y + 0.5;
-                    float size = (float) (5.0 + gp * 12.0);
-
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 230, 255, (int) (240 * ga));
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.4f, 255, 255, 255, (int) (255 * ga));
+                        drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 230, 255, (int) (230 * ga));
+                        drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.35f, 255, 255, 255, (int) (255 * ga));
+                    }
                 }
             }
         }
