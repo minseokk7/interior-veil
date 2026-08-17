@@ -402,10 +402,9 @@ public final class VeilManager {
                 && player.distanceToSqr(barrier.getPocketX() + 0.5, barrier.centerY() + 0.5, barrier.getPocketZ() + 0.5) <= 64.0;
         
         boolean holdingKey = holdsKeyFor(player, barrier);
-        boolean holdingMap = player.getMainHandItem().is(VeilItems.TACTICAL_MAP) || player.getOffhandItem().is(VeilItems.TACTICAL_MAP);
         
-        // 소유자나 관리자는 전술 패드 소지, 열쇠 소지, 포켓 차원 내부, 방어 모드 등 어디서든 조작/폭격 가능
-        return insidePocket || holdingKey || holdingMap || barrier.advanced().absoluteBarrier() || barrier.owner().equals(player.getUUID());
+        // 소유자나 관리자는 열쇠 소지, 포켓 차원 내부, 방어 모드 등 어디서든 조작/폭격 가능
+        return insidePocket || holdingKey || barrier.advanced().absoluteBarrier() || barrier.owner().equals(player.getUUID());
     }
 
     InteractionResult openConfig(ServerPlayer player, VeilBarrier barrier, boolean forceOpen) {
@@ -1508,6 +1507,29 @@ public final class VeilManager {
         }
     }
 
+    public boolean applyLaserStrike(ServerPlayer player, BlockPos targetPos) {
+        VeilBarrier barrier = barriers.values().stream()
+                .filter(b -> b.owner().equals(player.getUUID()) || player.hasPermissions(2))
+                .min(Comparator.comparingDouble(b -> BarrierGeometry.horizontalDistanceSquared(
+                        player.getX(), player.getZ(), b.centerX(), b.centerZ()
+                )))
+                .orElse(null);
+
+        if (barrier == null) {
+            player.sendSystemMessage(Component.literal("§c소유한 결계 신호기가 없습니다."));
+            return false;
+        }
+
+        if (!barrier.advanced().attackMode()) {
+            player.displayClientMessage(Component.translatable("message.interiorveil.attack_disabled"), true);
+            return false;
+        }
+
+        String payloadStr = targetPos.getX() + "," + targetPos.getY() + "," + targetPos.getZ() + "," + barrier.advanced().strikeRadius() + ",0,0";
+        fireCoordinateLaser(player, barrier, payloadStr);
+        return true;
+    }
+
     public void fireStrikeFromCommand(ServerPlayer player, int x, int y, int z) {
         fireStrikeFromCommand(player, x, y, z, 0, StrikeFormation.SINGLE);
     }
@@ -2125,98 +2147,6 @@ public final class VeilManager {
                 }
             }
         }
-    }
-
-    /**
-     * 전술 스캔 패드 아이템 우클릭 시 호출:
-     * 바닐라 지도 유무나 크기와 상관없이 현재 플레이어 위치 및 귀속 결계를 기준으로 512x512 광역 지형을 즉시 스캔하여 전술 지도 GUI를 팝업한다.
-     */
-    public void openTacticalMapFromItem(ServerPlayer player, ItemStack stack) {
-        if (!ServerPlayNetworking.canSend(player, VeilTargetMapPayload.TYPE)) {
-            return;
-        }
-
-        // 1. 연동할 결계 탐색 (소유한 결계, 또는 가장 가까운 결계, 또는 첫 번째 결계)
-        VeilBarrier targetBarrier = null;
-        Optional<UUID> boundId = VeilKeyBinding.barrierId(stack);
-        if (boundId.isPresent() && barriers.containsKey(boundId.get())) {
-            targetBarrier = barriers.get(boundId.get());
-        } else {
-            // 플레이어가 소유한 결계 탐색
-            targetBarrier = barriers.values().stream()
-                    .filter(b -> b.owner().equals(player.getUUID()) || player.hasPermissions(2))
-                    .min(Comparator.comparingDouble(b -> BarrierGeometry.horizontalDistanceSquared(
-                            player.getX(), player.getZ(), b.centerX(), b.centerZ()
-                    )))
-                    .orElse(null);
-
-            if (targetBarrier == null && !barriers.isEmpty()) {
-                targetBarrier = barriers.values().iterator().next();
-            }
-        }
-
-        ServerLevel source = server.getLevel(targetBarrier != null ? targetBarrier.sourceKey() : player.level().dimension());
-        if (source == null) {
-            source = server.overworld();
-        }
-        if (source == null) {
-            return;
-        }
-
-        int scanCenterX = targetBarrier != null ? targetBarrier.centerX() : (int) Math.floor(player.getX());
-        int scanCenterZ = targetBarrier != null ? targetBarrier.centerZ() : (int) Math.floor(player.getZ());
-        UUID barrierId = targetBarrier != null ? targetBarrier.id() : new UUID(0L, 0L);
-
-        // 2. 맵 크기 상관없이 광역 128x128 고해상도 지형 즉시 스캔 (cellSize = 4 -> 512x512 블록 광역 스캔)
-        int resolution = 128;
-        int cellSize = 4;
-        int[] heights = new int[resolution * resolution];
-        int[] colors = new int[resolution * resolution];
-        int startX = scanCenterX - resolution * cellSize / 2;
-        int startZ = scanCenterZ - resolution * cellSize / 2;
-
-        for (int mapZ = 0; mapZ < resolution; mapZ++) {
-            for (int mapX = 0; mapX < resolution; mapX++) {
-                int worldX = startX + mapX * cellSize + cellSize / 2;
-                int worldZ = startZ + mapZ * cellSize + cellSize / 2;
-                int index = mapZ * resolution + mapX;
-
-                if (!source.hasChunk(worldX >> 4, worldZ >> 4)) {
-                    heights[index] = source.getSeaLevel();
-                    colors[index] = 0xFF14171E; // 미로드 구역
-                    continue;
-                }
-
-                int surfaceY = source.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, worldX, worldZ);
-                BlockPos surface = new BlockPos(worldX, Math.max(source.getMinY(), surfaceY - 1), worldZ);
-                int color = 0;
-                for (int scanY = surface.getY(); scanY >= Math.max(source.getMinY(), surface.getY() - 8); scanY--) {
-                    BlockPos scanPos = new BlockPos(worldX, scanY, worldZ);
-                    int c = source.getBlockState(scanPos).getMapColor(source, scanPos).col;
-                    if (c != 0) {
-                        color = c;
-                        break;
-                    }
-                }
-                if (color == 0) {
-                    color = 0x916339;
-                }
-                int shade = Math.max(-28, Math.min(28, (surfaceY - source.getSeaLevel()) / 3));
-                colors[index] = 0xFF000000 | shadeColor(color, shade);
-                heights[index] = surfaceY;
-            }
-        }
-
-        player.displayClientMessage(
-                Component.literal("📡 전술 스캔 패드: 광역 지형(512x512) 스캔 완료")
-                        .withStyle(net.minecraft.ChatFormatting.GREEN, net.minecraft.ChatFormatting.BOLD),
-                true
-        );
-
-        int[] sculkPings = getSculkPings(source, targetBarrier);
-        ServerPlayNetworking.send(player, new VeilTargetMapPayload(
-                barrierId, scanCenterX, scanCenterZ, cellSize, resolution, heights, colors, sculkPings
-        ));
     }
 
     private void sendTargetMap(ServerPlayer player, VeilBarrier barrier) {

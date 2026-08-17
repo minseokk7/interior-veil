@@ -19,12 +19,12 @@ public final class VeilItems {
             new Item(new Item.Properties().setId(VEIL_KEY_RESOURCE_KEY).stacksTo(1).rarity(Rarity.EPIC))
     );
 
-    public static final ResourceLocation TACTICAL_MAP_ID = InteriorVeil.id("tactical_map");
-    public static final ResourceKey<Item> TACTICAL_MAP_RESOURCE_KEY = ResourceKey.create(Registries.ITEM, TACTICAL_MAP_ID);
-    public static final Item TACTICAL_MAP = Registry.register(
+    public static final ResourceLocation TARGETING_LASER_ID = InteriorVeil.id("targeting_laser");
+    public static final ResourceKey<Item> TARGETING_LASER_RESOURCE_KEY = ResourceKey.create(Registries.ITEM, TARGETING_LASER_ID);
+    public static final Item TARGETING_LASER = Registry.register(
             BuiltInRegistries.ITEM,
-            TACTICAL_MAP_RESOURCE_KEY,
-            new TacticalMapItem(new Item.Properties().setId(TACTICAL_MAP_RESOURCE_KEY).stacksTo(1).rarity(Rarity.RARE))
+            TARGETING_LASER_RESOURCE_KEY,
+            new dev.minse.interiorveil.item.TargetingLaserItem(new Item.Properties().setId(TARGETING_LASER_RESOURCE_KEY).stacksTo(1).rarity(Rarity.RARE))
     );
 
     private VeilItems() {
@@ -34,7 +34,7 @@ public final class VeilItems {
         ItemGroupEvents.modifyEntriesEvent(CreativeModeTabs.TOOLS_AND_UTILITIES)
                 .register(entries -> {
                     entries.accept(VEIL_KEY);
-                    entries.accept(TACTICAL_MAP);
+                    entries.accept(TARGETING_LASER);
                 });
     }
 }

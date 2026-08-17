@@ -1,6 +1,7 @@
 {
   "item.interiorveil.veil_key": "Veil Key",
-  "item.interiorveil.tactical_map": "Tactical Scan Pad",
+  "item.interiorveil.targeting_laser": "Targeting Laser",
+  "message.interiorveil.no_amethyst": "Not enough Amethyst Shards to fire laser.",
   "message.interiorveil.created": "The beacon moved behind a circular veil and vanished from the outside world.",
   "message.interiorveil.overlap": "The new veil would overlap an existing veil.",
   "message.interiorveil.too_close": "Too close to another veil to create a new one (minimum 259 blocks).",

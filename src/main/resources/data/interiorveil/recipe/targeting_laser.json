@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " R ",
+    "ASA",
+    " L "
+  ],
+  "key": {
+    "R": "minecraft:redstone",
+    "A": "minecraft:amethyst_shard",
+    "S": "minecraft:spyglass",
+    "L": "minecraft:lightning_rod"
+  },
+  "result": {
+    "id": "interiorveil:targeting_laser",
+    "count": 1
+  }
+}

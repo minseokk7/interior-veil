@@ -1,6 +1,7 @@
 {
   "item.interiorveil.veil_key": "결계 열쇠",
-  "item.interiorveil.tactical_map": "전술 스캔 패드",
+  "item.interiorveil.targeting_laser": "타겟팅 레이저",
+  "message.interiorveil.no_amethyst": "레이저 발사를 위한 자수정 조각이 부족합니다.",
   "message.interiorveil.created": "신호기가 원형 결계 내부로 이동해 외부에서 사라졌습니다.",
   "message.interiorveil.overlap": "다른 결계와 겹치는 위치에는 생성할 수 없습니다.",
   "message.interiorveil.too_close": "다른 결계와 너무 가깝습니다 (최소 259블록 제한).",

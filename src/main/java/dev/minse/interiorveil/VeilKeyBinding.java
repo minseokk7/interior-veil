@@ -30,7 +30,7 @@ final class VeilKeyBinding {
     }
 
     static Optional<UUID> barrierId(ItemStack stack) {
-        if (!stack.is(VeilItems.VEIL_KEY) && !stack.is(VeilItems.TACTICAL_MAP)) {
+        if (!stack.is(VeilItems.VEIL_KEY)) {
             return Optional.empty();
         }
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
@@ -40,7 +40,7 @@ final class VeilKeyBinding {
     }
 
     static int revision(ItemStack stack) {
-        if (!stack.is(VeilItems.VEIL_KEY) && !stack.is(VeilItems.TACTICAL_MAP)) {
+        if (!stack.is(VeilItems.VEIL_KEY)) {
             return 0;
         }
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
