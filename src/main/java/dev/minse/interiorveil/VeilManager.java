@@ -1279,7 +1279,7 @@ public final class VeilManager {
                             && BarrierGeometry.horizontalDistanceSquared(
                                     entity.getX(), entity.getZ(), center.x, center.z
                             ) <= attackRadius * attackRadius
-                            && !isAttackFriendly(entity, barrier))) {
+                            && isTargetableHostile(entity, barrier))) {
                 target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 40, 0, false, false));
                 damageTarget(source, target, 2.0F);
 
@@ -1950,6 +1950,33 @@ public final class VeilManager {
                 }
             }
         }
+        return false;
+    }
+
+    /**
+     * 신호기 감지 및 자동 요격 대상 판정:
+     * 1. 비인가 플레이어 (소유자, 허용 목록, 동맹 팀이 아닌 외부 플레이어)
+     * 2. 적대적 몬스터 (Enemy / Monster 인터페이스: 좀비, 스켈레톤, 크리퍼, 엔더맨, 일리저, 드라운드, 워든 등)
+     * 
+     * * 가축, 동물(Animal), 길들인 펫, 주민(Villager), 골렘(IronGolem), 수중생물 등은 일체 감지/공격하지 않음!
+     */
+    private static boolean isTargetableHostile(LivingEntity entity, VeilBarrier barrier) {
+        if (entity == null || !entity.isAlive() || entity.isSpectator()) {
+            return false;
+        }
+
+        // 1. 플레이어: 소유자/허용목록/팀이 아닌 침입자 플레이어만 타겟팅
+        if (entity instanceof ServerPlayer player) {
+            return !isAttackFriendly(player, barrier);
+        }
+
+        // 2. 적대적 몬스터: Enemy 인터페이스 구현체 (Monster 등 모든 적대적 몹)
+        if (entity instanceof net.minecraft.world.entity.monster.Enemy) {
+            // 길들인 동물이나 아군은 Enemy가 아니므로 완벽하게 안전
+            return true;
+        }
+
+        // 3. 그 외 동물(Animal), 가축, 주민(Villager), 골렘(IronGolem), 박쥐, 오징어 등 비적대적 생명체는 일체 감지하지 않음
         return false;
     }
 
