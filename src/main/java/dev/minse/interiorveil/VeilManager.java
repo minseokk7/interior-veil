@@ -721,8 +721,8 @@ public final class VeilManager {
                     beginTransition(player, barrier, TransitionState.Direction.ENTER);
                     return;
                 } else if (barrier.advanced().absoluteBarrier()) {
-                    if (holdsKeyFor(player, barrier)) {
-                        continue; // 열쇠 소지자는 내부에서 안전하게 체류
+                    if (holdsKeyFor(player, barrier) || isAttackFriendly(player, barrier)) {
+                        continue; // 열쇠 소지자 또는 소유자/아군은 내부에서 튕겨나가지 않고 안전하게 체류 및 보호
                     }
                     double dx = player.getX() - barrier.centerX();
                     double dz = player.getZ() - barrier.centerZ();
@@ -1376,6 +1376,17 @@ public final class VeilManager {
      */
     private void tickBeaconCores() {
         for (VeilBarrier barrier : barriers.values()) {
+            if (pendingRemovals.containsKey(barrier.id())) {
+                // 임시 방어 돔: 내부 아군에게 저항 II 및 재생 II 방어막 버프 부여
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (barrier.sourceKey().equals(player.level().dimension())
+                            && barrier.contains(player.getX(), player.getY(), player.getZ(), 0, false)
+                            && isAttackFriendly(player, barrier)) {
+                        player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 60, 1, false, false, true));
+                        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 60, 1, false, false, true));
+                    }
+                }
+            }
             if (!isBarrierPowered(barrier)) continue;
             if (hasAmethystCore(barrier)) {
                 // 자수정 코어: 결계 내부의 모든 아군 플레이어에게 재생 II 및 포만감, 흡수 버프 부여
@@ -1675,31 +1686,34 @@ public final class VeilManager {
             Vec3 target = strike.target();
             if (barrier == null) continue;
 
-            AABB path = new AABB(origin, target).inflate(3.0);
-            Set<UUID> hit = new java.util.HashSet<>();
-            for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, path,
-                    candidate -> candidate.isAlive() && !isAttackFriendly(candidate, barrier))) {
-                if (distanceToSegmentSquared(entity.position(), origin, target) <= 6.25) {
-                    hit.add(entity.getUUID());
-                    entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, false));
-                    damageTarget(level, entity, 12.0F);
-                }
-            }
-            AABB impact = new AABB(target, target).inflate(5.0);
-            for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, impact,
-                    candidate -> candidate.isAlive() && !isAttackFriendly(candidate, barrier))) {
-                if (hit.add(entity.getUUID())) {
-                    entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, false));
-                    damageTarget(level, entity, 16.0F);
-                }
-            }
-
             int strikeType = strike.strikeType();
             int bombRadius = barrier.advanced().strikeRadius();
 
             int kills = 0;
             float totalDamage = 0;
             int debuffedCount = 0;
+
+            // 공격형 탄종(고폭탄, EMP, 동결, 특이점, 낙진)일 때만 관통 레이저 및 착탄 폭발 피해 적용 (보급포드 2 및 방어막포드 6 제외)
+            if (strikeType != 2 && strikeType != 6) {
+                AABB path = new AABB(origin, target).inflate(3.0);
+                Set<UUID> hit = new java.util.HashSet<>();
+                for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, path,
+                        candidate -> candidate.isAlive() && !isAttackFriendly(candidate, barrier))) {
+                    if (distanceToSegmentSquared(entity.position(), origin, target) <= 6.25) {
+                        hit.add(entity.getUUID());
+                        entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, false));
+                        damageTarget(level, entity, 12.0F);
+                    }
+                }
+                AABB impact = new AABB(target, target).inflate(5.0);
+                for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, impact,
+                        candidate -> candidate.isAlive() && !isAttackFriendly(candidate, barrier))) {
+                    if (hit.add(entity.getUUID())) {
+                        entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, false));
+                        damageTarget(level, entity, 16.0F);
+                    }
+                }
+            }
 
             if (strikeType == 1) {
                 // [탄종 1: EMP 전자기 펄스탄] - 지형 파괴 없음, 광역 마비 및 전기 방전, 겉날개 무력화
