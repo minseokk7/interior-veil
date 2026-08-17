@@ -12,7 +12,7 @@ class VeilAdvancedSettingsTest {
     void overnightAccessWindowWrapsAcrossMidnight() {
         VeilAdvancedSettings settings = new VeilAdvancedSettings(
                 1, null, 18000, 6000, 96, 1.25F, 3, 0.75F, true, false, 0x123456,
-                false, 0, 64, 0, 20, false, false
+                false, false, 0, 64, 0, 20, false, false
         );
 
         assertTrue(settings.isAccessTime(19000));

@@ -60,7 +60,7 @@ public final class VeilBeaconColorScreen extends Screen {
                     current.accessStart(), current.accessEnd(), current.boundaryDensity(), current.boundarySize(),
                     current.navigationDensity(), current.navigationSize(), current.requireBeaconPower(),
                     false, current.disableFog(), current.fogColor(),
-                    current.attackMode(), current.attackTargetX(), current.attackTargetY(), current.attackTargetZ(),
+                    current.attackMode(), current.perimeterDefense(), current.attackTargetX(), current.attackTargetY(), current.attackTargetZ(),
                     current.strikeRadius(), current.absoluteBarrier(), current.reflectProjectiles(), current.allowedPlayers()
             );
             ClientPlayNetworking.send(current);

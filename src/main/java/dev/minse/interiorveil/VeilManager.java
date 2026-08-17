@@ -183,6 +183,7 @@ public final class VeilManager {
                         payload.disableFog(),
                         payload.fogColor(),
                         payload.attackMode(),
+                        payload.perimeterDefense(),
                         payload.attackTargetX(),
                         payload.attackTargetY(),
                         payload.attackTargetZ(),
@@ -445,6 +446,7 @@ public final class VeilManager {
                 barrier.advanced().disableFog(),
                 barrier.advanced().fogColor(),
                 barrier.advanced().attackMode(),
+                barrier.advanced().perimeterDefense(),
                 barrier.advanced().attackTargetX(),
                 barrier.advanced().attackTargetY(),
                 barrier.advanced().attackTargetZ(),
@@ -1416,7 +1418,7 @@ public final class VeilManager {
 
     private void tickAttackModes() {
         for (VeilBarrier barrier : barriers.values()) {
-            if (!barrier.advanced().attackMode() || !isBarrierPowered(barrier)) {
+            if (!barrier.advanced().perimeterDefense() || !isBarrierPowered(barrier)) {
                 continue;
             }
             ServerLevel source = server.getLevel(barrier.sourceKey());
@@ -1541,7 +1543,7 @@ public final class VeilManager {
                         barrier.advanced().boundaryDensity(), barrier.advanced().boundarySize(),
                         barrier.advanced().navigationDensity(), barrier.advanced().navigationSize(),
                         barrier.advanced().requireBeaconPower(), barrier.advanced().disableFog(),
-                        barrier.advanced().fogColor(), true,
+                        barrier.advanced().fogColor(), true, barrier.advanced().perimeterDefense(),
                         x, y, z, barrier.advanced().strikeRadius(),
                         barrier.advanced().absoluteBarrier(), barrier.advanced().reflectProjectiles()
                 )
@@ -1588,7 +1590,7 @@ public final class VeilManager {
                                 barrier.advanced().boundaryDensity(), barrier.advanced().boundarySize(),
                                 barrier.advanced().navigationDensity(), barrier.advanced().navigationSize(),
                                 barrier.advanced().requireBeaconPower(), barrier.advanced().disableFog(),
-                                barrier.advanced().fogColor(), barrier.advanced().attackMode(),
+                                barrier.advanced().fogColor(), barrier.advanced().attackMode(), barrier.advanced().perimeterDefense(),
                                 x, y, z, radius, barrier.advanced().absoluteBarrier(), barrier.advanced().reflectProjectiles()
                         )
                 ));
@@ -2059,7 +2061,7 @@ public final class VeilManager {
                 0xFFD700,
                 new VeilAdvancedSettings(
                         1, Map.of(), 0, 24000, 200, 200, 140, 100,
-                        false, false, 0xFFD700, false, 0, 0, 0, 0,
+                        false, false, 0xFFD700, false, false, 0, 0, 0, 0,
                         true, true
                 ),
                 4,

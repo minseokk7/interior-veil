@@ -31,6 +31,7 @@ public record VeilConfigPayload(
         boolean disableFog,
         int fogColor,
         boolean attackMode,
+        boolean perimeterDefense,
         int attackTargetX,
         int attackTargetY,
         int attackTargetZ,
@@ -70,6 +71,7 @@ public record VeilConfigPayload(
                 buffer.readBoolean(),
                 buffer.readVarInt(),
                 buffer.readBoolean(),
+                buffer.readBoolean(),
                 buffer.readInt(),
                 buffer.readInt(),
                 buffer.readInt(),
@@ -105,6 +107,7 @@ public record VeilConfigPayload(
         buffer.writeBoolean(disableFog);
         buffer.writeVarInt(fogColor);
         buffer.writeBoolean(attackMode);
+        buffer.writeBoolean(perimeterDefense);
         buffer.writeInt(attackTargetX);
         buffer.writeInt(attackTargetY);
         buffer.writeInt(attackTargetZ);

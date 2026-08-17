@@ -32,6 +32,7 @@ public final class VeilConfigScreen extends Screen {
     private boolean securityMode;
     private boolean requireBeaconPower;
     private boolean attackMode;
+    private boolean perimeterDefense;
     private boolean absoluteBarrier;
     private boolean reflectProjectiles;
     private boolean disableFog;
@@ -39,6 +40,7 @@ public final class VeilConfigScreen extends Screen {
     private Button boundaryButton;
     private Button powerButton;
     private Button attackButton;
+    private Button perimeterDefenseButton;
     private Component status = Component.empty();
 
     public VeilConfigScreen(VeilConfigPayload payload) {
@@ -48,6 +50,7 @@ public final class VeilConfigScreen extends Screen {
         this.securityMode = payload.securityMode();
         this.requireBeaconPower = payload.requireBeaconPower();
         this.attackMode = payload.attackMode();
+        this.perimeterDefense = payload.perimeterDefense();
         this.absoluteBarrier = payload.absoluteBarrier();
         this.reflectProjectiles = payload.reflectProjectiles();
         this.disableFog = payload.disableFog();
@@ -156,15 +159,20 @@ public final class VeilConfigScreen extends Screen {
 
         fourth = field(right, top + 86, Integer.toString(current.strikeRadius()), true, 3);
 
+        perimeterDefenseButton = addRenderableWidget(toggle(left, top + 120, 310, perimeterDefenseMessage(), button -> {
+            perimeterDefense = !perimeterDefense;
+            button.setMessage(perimeterDefenseMessage());
+        }, "screen.interiorveil.config.perimeter_tip"));
+
         addRenderableWidget(Button.builder(Component.translatable("screen.interiorveil.config.attack_map"), button -> {
             if (saveAttack(false)) {
                 ClientPlayNetworking.send(new VeilAdminActionPayload(current.barrierId(), "map_request", ""));
             }
-        }).bounds(left, top + 120, 310, 20).build());
+        }).bounds(left, top + 154, 150, 20).build());
 
         addRenderableWidget(Button.builder(Component.translatable("screen.interiorveil.config.attack_fire"), button ->
                 saveAttack(true)
-        ).bounds(left, top + 146, 310, 20).tooltip(Tooltip.create(Component.translatable(
+        ).bounds(right, top + 154, 155, 20).tooltip(Tooltip.create(Component.translatable(
                 "screen.interiorveil.config.attack_fire_tip"
         ))).build());
 
@@ -172,14 +180,14 @@ public final class VeilConfigScreen extends Screen {
     }
 
     private void initGuard(int left, int right, int top) {
-        addRenderableWidget(toggle(left, top + 52, absoluteBarrierMessage(), button -> {
+        addRenderableWidget(toggle(left, top + 52, 310, absoluteBarrierMessage(), button -> {
             absoluteBarrier = !absoluteBarrier;
             button.setMessage(absoluteBarrierMessage());
-        }, "screen.interiorveil.config.absolute_barrier_tip")).setWidth(310);
-        addRenderableWidget(toggle(left, top + 78, reflectProjectilesMessage(), button -> {
+        }, "screen.interiorveil.config.absolute_barrier_tip"));
+        addRenderableWidget(toggle(left, top + 78, 310, reflectProjectilesMessage(), button -> {
             reflectProjectiles = !reflectProjectiles;
             button.setMessage(reflectProjectilesMessage());
-        }, "screen.interiorveil.config.reflect_tip")).setWidth(310);
+        }, "screen.interiorveil.config.reflect_tip"));
         footer(left, right, top, this::saveGuard, this::resetGuard);
     }
 
@@ -202,11 +210,15 @@ public final class VeilConfigScreen extends Screen {
                 .bounds(right + 55, top + 242, 95, 20).build());
     }
 
-    private Button toggle(int x, int y, Component message, Button.OnPress press, String tooltipKey) {
+    private Button toggle(int x, int y, int width, Component message, Button.OnPress press, String tooltipKey) {
         return Button.builder(message, press)
-                .bounds(x, y, 150, 20)
+                .bounds(x, y, width, 20)
                 .tooltip(Tooltip.create(Component.translatable(tooltipKey)))
                 .build();
+    }
+
+    private Button toggle(int x, int y, Component message, Button.OnPress press, String tooltipKey) {
+        return toggle(x, y, 150, message, press, tooltipKey);
     }
 
     private EditBox field(int x, int y, String value, boolean numeric, int maxLength) {
@@ -236,7 +248,7 @@ public final class VeilConfigScreen extends Screen {
                     boundaryVisible, current.boundaryColor(), current.navigationColor(), securityMode,
                     current.beaconColor(), current.accessStart(), current.accessEnd(), current.boundaryDensity(),
                     current.boundarySize(), current.navigationDensity(), current.navigationSize(), requireBeaconPower, false,
-                    current.disableFog(), current.fogColor(), attackMode, current.attackTargetX(), current.attackTargetY(),
+                    current.disableFog(), current.fogColor(), attackMode, perimeterDefense, current.attackTargetX(), current.attackTargetY(),
                     current.attackTargetZ(), current.strikeRadius(), absoluteBarrier, reflectProjectiles, current.allowedPlayers()
             ));
         } catch (IllegalArgumentException ignored) {
@@ -252,8 +264,8 @@ public final class VeilConfigScreen extends Screen {
                     color(first), color(second), securityMode, color(third), current.accessStart(), current.accessEnd(),
                     integer(fourth, 24, 192), decimal(fifth, 0.25F, 3.0F), integer(sixth, 1, 12),
                     decimal(seventh, 0.25F, 2.0F), requireBeaconPower, false, disableFog, color(eighth), attackMode,
-                    current.attackTargetX(), current.attackTargetY(), current.attackTargetZ(), current.strikeRadius(),
-                    absoluteBarrier, reflectProjectiles, current.allowedPlayers()
+                    perimeterDefense, current.attackTargetX(), current.attackTargetY(), current.attackTargetZ(),
+                    current.strikeRadius(), absoluteBarrier, reflectProjectiles, current.allowedPlayers()
             ));
         } catch (IllegalArgumentException ignored) {
             invalid();
@@ -269,8 +281,8 @@ public final class VeilConfigScreen extends Screen {
                     integer(first, 0, 23999), integer(second, 0, 23999), current.boundaryDensity(),
                     current.boundarySize(), current.navigationDensity(), current.navigationSize(),
                     requireBeaconPower, false, current.disableFog(), current.fogColor(), attackMode,
-                    current.attackTargetX(), current.attackTargetY(), current.attackTargetZ(), current.strikeRadius(),
-                    absoluteBarrier, reflectProjectiles, current.allowedPlayers()
+                    perimeterDefense, current.attackTargetX(), current.attackTargetY(), current.attackTargetZ(),
+                    current.strikeRadius(), absoluteBarrier, reflectProjectiles, current.allowedPlayers()
             ));
         } catch (IllegalArgumentException ignored) {
             invalid();
@@ -289,7 +301,7 @@ public final class VeilConfigScreen extends Screen {
                     current.boundaryColor(), current.navigationColor(), securityMode, current.beaconColor(),
                     current.accessStart(), current.accessEnd(), current.boundaryDensity(), current.boundarySize(),
                     current.navigationDensity(), current.navigationSize(), requireBeaconPower, false, current.disableFog(), current.fogColor(),
-                    attackMode, targetX, targetY, targetZ, radius, absoluteBarrier, reflectProjectiles, current.allowedPlayers()
+                    attackMode, perimeterDefense, targetX, targetY, targetZ, radius, absoluteBarrier, reflectProjectiles, current.allowedPlayers()
             ));
             if (fire) {
                 ClientPlayNetworking.send(new VeilAdminActionPayload(
@@ -310,7 +322,7 @@ public final class VeilConfigScreen extends Screen {
                 current.boundaryColor(), current.navigationColor(), securityMode, current.beaconColor(),
                 current.accessStart(), current.accessEnd(), current.boundaryDensity(), current.boundarySize(),
                 current.navigationDensity(), current.navigationSize(), requireBeaconPower, false, current.disableFog(), current.fogColor(),
-                attackMode, current.attackTargetX(), current.attackTargetY(),
+                attackMode, perimeterDefense, current.attackTargetX(), current.attackTargetY(),
                 current.attackTargetZ(), current.strikeRadius(), absoluteBarrier, reflectProjectiles, current.allowedPlayers()
         ));
     }
@@ -362,9 +374,11 @@ public final class VeilConfigScreen extends Screen {
         second.setValue(Integer.toString(current.attackTargetY()));
         third.setValue(Integer.toString(current.attackTargetZ()));
         attackMode = current.attackMode();
+        perimeterDefense = current.perimeterDefense();
         absoluteBarrier = current.absoluteBarrier();
         reflectProjectiles = current.reflectProjectiles();
         if (attackButton != null) attackButton.setMessage(attackMessage());
+        if (perimeterDefenseButton != null) perimeterDefenseButton.setMessage(perimeterDefenseMessage());
     }
 
     private static int integer(EditBox box, int minimum, int maximum) {
@@ -420,6 +434,11 @@ public final class VeilConfigScreen extends Screen {
     private Component attackMessage() {
         return Component.translatable(attackMode
                 ? "screen.interiorveil.config.attack_on" : "screen.interiorveil.config.attack_off");
+    }
+
+    private Component perimeterDefenseMessage() {
+        return Component.translatable(perimeterDefense
+                ? "screen.interiorveil.config.perimeter_on" : "screen.interiorveil.config.perimeter_off");
     }
 
     private Component absoluteBarrierMessage() {

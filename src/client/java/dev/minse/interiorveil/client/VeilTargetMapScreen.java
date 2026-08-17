@@ -175,7 +175,7 @@ public final class VeilTargetMapScreen extends Screen {
                     current.accessStart(), current.accessEnd(), current.boundaryDensity(), current.boundarySize(),
                     current.navigationDensity(), current.navigationSize(), current.requireBeaconPower(),
                     false, current.disableFog(), current.fogColor(),
-                    fire || current.attackMode(), selectedX, selectedY, selectedZ, current.strikeRadius(),
+                    fire || current.attackMode(), current.perimeterDefense(), selectedX, selectedY, selectedZ, current.strikeRadius(),
                     current.absoluteBarrier(), current.reflectProjectiles(), current.allowedPlayers());
             ClientPlayNetworking.send(current);
             VeilConfigClientState.accept(current);

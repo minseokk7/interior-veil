@@ -17,6 +17,7 @@ public record VeilAdvancedSettings(
         boolean disableFog,
         int fogColor,
         boolean attackMode,
+        boolean perimeterDefense,
         int attackTargetX,
         int attackTargetY,
         int attackTargetZ,
@@ -39,7 +40,7 @@ public record VeilAdvancedSettings(
 
     public static VeilAdvancedSettings defaults() {
         return new VeilAdvancedSettings(1, Map.of(), 0, 0, 96, 1.25F, 3, 0.75F, false, false, 0xB8C2CC,
-                false, 0, 64, 0, 20, false, false);
+                false, false, 0, 64, 0, 20, false, false);
     }
 
     public VeilAdvancedSettings withAccess(UUID playerId, String playerName, boolean allowed) {
@@ -62,6 +63,7 @@ public record VeilAdvancedSettings(
                 disableFog,
                 fogColor,
                 attackMode,
+                perimeterDefense,
                 attackTargetX,
                 attackTargetY,
                 attackTargetZ,
@@ -85,6 +87,7 @@ public record VeilAdvancedSettings(
                 disableFog,
                 fogColor,
                 attackMode,
+                perimeterDefense,
                 attackTargetX,
                 attackTargetY,
                 attackTargetZ,
