@@ -686,6 +686,20 @@ public final class VeilManager {
                         insideBarrier.fogFadeTicks(),
                         insideBarrier.advanced().fogColor()
                 ));
+
+                // 실시간 침입자 경보 (Intruder Alert System): 5초(100틱)마다 소유자 및 허용 플레이어에게 알림
+                if (tickCounter % 100 == 0 && !isAttackFriendly(player, insideBarrier)) {
+                    for (ServerPlayer notifyTarget : server.getPlayerList().getPlayers()) {
+                        if (isAttackFriendly(notifyTarget, insideBarrier)) {
+                            notifyTarget.displayClientMessage(
+                                    Component.literal(String.format("§c⚠️ [침입자 경보] §e%s§7 님이 결계 외곽에 접근했습니다! §c[X: %d, Z: %d]",
+                                            player.getGameProfile().name(), (int) player.getX(), (int) player.getZ())),
+                                    true
+                            );
+                            notifyTarget.playNotifySound(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.PLAYERS, 1.5F, 0.6F);
+                        }
+                    }
+                }
             } else {
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new dev.minse.interiorveil.network.FogStatePayload(
                         false,
@@ -1255,6 +1269,10 @@ public final class VeilManager {
             Vec3 center = Vec3.atCenterOf(barrier.center());
             double attackRadius = barrier.radius() + 100.0;
             AABB area = new AABB(center, center).inflate(attackRadius);
+
+            LivingEntity closestTarget = null;
+            double closestDistSq = Double.MAX_VALUE;
+
             for (LivingEntity target : source.getEntitiesOfClass(LivingEntity.class, area,
                     entity -> entity.isAlive()
                             && BarrierGeometry.horizontalDistanceSquared(
@@ -1263,6 +1281,37 @@ public final class VeilManager {
                             && !isAttackFriendly(entity, barrier))) {
                 target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 40, 0, false, false));
                 damageTarget(source, target, 2.0F);
+
+                double dSq = target.distanceToSqr(center);
+                if (dSq < closestDistSq) {
+                    closestDistSq = dSq;
+                    closestTarget = target;
+                }
+            }
+
+            // 자동 요격 센트리 (Auto Sentry Turret): 1초마다 가장 가까운 타겟에게 펄스 요격 레이저 발사
+            if (closestTarget != null && tickCounter % 20 == 0) {
+                damageTarget(source, closestTarget, 10.0F);
+                source.playSound(null, BlockPos.containing(center), SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 2.0F, 1.8F);
+                source.playSound(null, closestTarget.blockPosition(), SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.WEATHER, 1.5F, 1.5F);
+
+                // 센트리 레이저 궤적 파티클
+                Vec3 from = center.add(0, 1.5, 0);
+                Vec3 to = closestTarget.getEyePosition();
+                Vec3 dir = to.subtract(from);
+                double len = dir.length();
+                if (len > 0) {
+                    Vec3 unit = dir.scale(1.0 / len);
+                    for (double d = 0; d < len; d += 0.8) {
+                        Vec3 p = from.add(unit.scale(d));
+                        source.sendParticles(ParticleTypes.ELECTRIC_SPARK, p.x, p.y, p.z, 2, 0.05, 0.05, 0.05, 0.02);
+                    }
+                }
+
+                // Create / 레드스톤 호환 출력: 신호기 위치 갱신 (Create Redstone Link / 대포 자동 격발기 트리거)
+                BlockPos beaconPos = barrier.center();
+                source.updateNeighborsAt(beaconPos, Blocks.BEACON);
+                source.updateNeighborsAt(beaconPos.below(), Blocks.BEACON);
             }
         }
     }
@@ -1314,12 +1363,16 @@ public final class VeilManager {
         int x;
         int y;
         int z;
+        int strikeType = 0; // 0: HE_THERMAL, 1: EMP_PULSE, 2: SUPPLY_POD
         try {
             x = Integer.parseInt(parts[0]);
             y = Integer.parseInt(parts[1]);
             z = Integer.parseInt(parts[2]);
             if (parts.length >= 4) {
                 int radius = Integer.parseInt(parts[3]);
+                if (parts.length >= 5) {
+                    strikeType = Integer.parseInt(parts[4]);
+                }
                 barriers.put(barrier.id(), barrier.withSettings(
                         barrier.name(), barrier.radius(), barrier.height(), barrier.fogMargin(),
                         barrier.fogDistance(), barrier.fogFadeTicks(), barrier.navigationRange(),
@@ -1361,10 +1414,11 @@ public final class VeilManager {
             return;
         }
 
-        player.displayClientMessage(Component.translatable("message.interiorveil.laser_fired", x, y, z, barrier.advanced().strikeRadius()), true);
+        String typeLabel = strikeType == 1 ? "⚡ EMP 펄스" : (strikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍");
+        player.displayClientMessage(Component.literal(String.format("🛰️ 궤도 폭격 발사 승인: [%s] [X: %d, Y: %d, Z: %d] (R: %dm)", typeLabel, x, y, z, barrier.advanced().strikeRadius())), true);
         
         // 5초(100틱) 후 폭격 예약 (화면 카운트다운 표시)
-        pendingStrikes.add(new PendingStrike(source.dimension(), origin, target, barrier.id(), tickCounter + 100));
+        pendingStrikes.add(new PendingStrike(source.dimension(), origin, target, barrier.id(), tickCounter + 100, strikeType));
 
         // 발사 즉시 첫 번째 '5' 카운트다운 타이틀 전송
         net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket initAnim =
@@ -1492,22 +1546,85 @@ public final class VeilManager {
                 }
             }
 
-            // 충돌 지점 반경 블럭 파괴 (사용자 설정 strikeRadius 적용)
+            int strikeType = strike.strikeType();
             int bombRadius = barrier.advanced().strikeRadius();
-            destroyBombRadius(level, target, bombRadius);
 
-            // 실제 블록(신호기/철)을 설치하지 않고, 목표 구덩이 바닥에서 하늘로 솟구치는 붉은색 궤도 폭격 레이저 빔 패킷 전송 (2분 = 2400틱 지속)
-            int craterBottomY = Math.max(level.getMinY(), (int) target.y - bombRadius);
-            int beamColor = 0xFF2222;
-            dev.minse.interiorveil.network.StrikeBeamPayload beamPayload = new dev.minse.interiorveil.network.StrikeBeamPayload(
-                    target.x, craterBottomY, target.z, 2400, beamColor
-            );
-            for (ServerPlayer player : level.players()) {
-                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, beamPayload);
+            if (strikeType == 1) {
+                // [탄종 1: EMP 전자기 펄스탄] - 지형 파괴 없음, 광역 마비 및 전기 방전, 겉날개 무력화
+                double empRadius = Math.max(48.0, bombRadius * 3.0);
+                AABB empArea = new AABB(target, target).inflate(empRadius);
+                for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, empArea,
+                        candidate -> candidate.isAlive() && !isAttackFriendly(candidate, barrier))) {
+                    // 마비 및 디버프
+                    entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 5, false, false));
+                    entity.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 2, false, false));
+                    entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 200, 0, false, false));
+                    damageTarget(level, entity, 8.0F);
+                    if (entity instanceof ServerPlayer sp) {
+                        sp.stopFallFlying();
+                        sp.displayClientMessage(
+                                Component.literal("⚡ 강력한 EMP 전자기 펄스에 피격되어 시스템이 일시 마비되었습니다!")
+                                        .withStyle(net.minecraft.ChatFormatting.AQUA, net.minecraft.ChatFormatting.BOLD),
+                                true
+                        );
+                    }
+                }
+
+                // EMP 푸른 전기 빔 (color: 0x00E5FF, 지속시간 600틱 = 30초)
+                int beamColor = 0x00E5FF;
+                dev.minse.interiorveil.network.StrikeBeamPayload beamPayload = new dev.minse.interiorveil.network.StrikeBeamPayload(
+                        target.x, (int) target.y, target.z, 600, beamColor
+                );
+                for (ServerPlayer player : level.players()) {
+                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, beamPayload);
+                }
+
+                // EMP 번개 굉음 및 대규모 전기 스파크 파티클
+                BlockPos centerPos = BlockPos.containing(target);
+                level.playSound(null, centerPos, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 10.0F, 1.2F);
+                level.playSound(null, centerPos, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.BLOCKS, 8.0F, 1.4F);
+                for (int i = 0; i < 80; i++) {
+                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK, target.x, target.y + 1, target.z, 20, 8.0, 4.0, 8.0, 0.3);
+                }
+            } else if (strikeType == 2) {
+                // [탄종 2: 궤도 보급 포드 투하] - 전술 보급품 상자 낙하
+                BlockPos landPos = BlockPos.containing(target);
+                // 착탄 지점에 상자 또는 보급 블록 배치
+                if (level.getBlockState(landPos).canBeReplaced()) {
+                    level.setBlock(landPos, Blocks.CHEST.defaultBlockState(), 3);
+                    BlockEntity be = level.getBlockEntity(landPos);
+                    if (be instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chest) {
+                        chest.setItem(0, new ItemStack(VeilItems.VEIL_KEY));
+                        chest.setItem(4, new ItemStack(Blocks.EMERALD_BLOCK, 4));
+                        chest.setItem(11, new ItemStack(net.minecraft.world.item.Items.DIAMOND, 8));
+                        chest.setItem(13, new ItemStack(net.minecraft.world.item.Items.NETHERITE_SCRAP, 2));
+                        chest.setItem(15, new ItemStack(net.minecraft.world.item.Items.ENCHANTED_GOLDEN_APPLE, 2));
+                        chest.setItem(22, new ItemStack(net.minecraft.world.item.Items.TOTEM_OF_UNDYING, 1));
+                        chest.setItem(26, new ItemStack(net.minecraft.world.item.Items.ENDER_PEARL, 16));
+                    }
+                }
+
+                // 보급 포드 착탄 사운드 & 불꽃 파티클
+                level.playSound(null, landPos, SoundEvents.ANVIL_LAND, SoundSource.BLOCKS, 5.0F, 0.8F);
+                level.playSound(null, landPos, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 6.0F, 1.5F);
+                level.sendParticles(ParticleTypes.FIREWORK, target.x, target.y + 1, target.z, 50, 2.0, 2.0, 2.0, 0.15);
+                level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, target.x, target.y + 1, target.z, 40, 1.5, 3.0, 1.5, 0.05);
+            } else {
+                // [탄종 0: 고폭 열폭풍탄 - 기본값]
+                destroyBombRadius(level, target, bombRadius);
+
+                int craterBottomY = Math.max(level.getMinY(), (int) target.y - bombRadius);
+                int beamColor = 0xFF2222;
+                dev.minse.interiorveil.network.StrikeBeamPayload beamPayload = new dev.minse.interiorveil.network.StrikeBeamPayload(
+                        target.x, craterBottomY, target.z, 2400, beamColor
+                );
+                for (ServerPlayer player : level.players()) {
+                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, beamPayload);
+                }
+
+                emitLaserColumnExplosion(level, target, craterBottomY);
+                emitThermalShockwave(level, target, barrier, bombRadius);
             }
-
-            emitLaserColumnExplosion(level, target, craterBottomY);
-            emitThermalShockwave(level, target, barrier, bombRadius);
         }
     }
 
@@ -1749,10 +1866,26 @@ public final class VeilManager {
     }
 
     private static boolean isAttackFriendly(LivingEntity entity, VeilBarrier barrier) {
-        return entity instanceof ServerPlayer player
-                && (player.getUUID().equals(barrier.owner())
+        if (entity instanceof ServerPlayer player) {
+            if (player.getUUID().equals(barrier.owner())
                     || barrier.advanced().allowedPlayers().containsKey(player.getUUID())
-                    || player.hasPermissions(2));
+                    || player.hasPermissions(2)) {
+                return true;
+            }
+
+            // 마인크래프트 스코어보드 팀(Team) 일괄 권한 검사 (예: team:red 또는 팀 이름)
+            net.minecraft.world.scores.PlayerTeam team = player.getTeam();
+            if (team != null) {
+                String teamName = team.getName().toLowerCase();
+                for (String allowedName : barrier.advanced().allowedPlayers().values()) {
+                    String clean = allowedName.trim().toLowerCase();
+                    if (clean.equals("team:" + teamName) || clean.equals(teamName)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static void damageTarget(ServerLevel level, LivingEntity target, float amount) {
@@ -2109,7 +2242,7 @@ public final class VeilManager {
     private record PendingRemoval(UUID barrierId, int expiresAtTick) {
     }
 
-    private record PendingStrike(net.minecraft.resources.ResourceKey<Level> dimension, Vec3 origin, Vec3 target, UUID barrierId, int executeAtTick) {
+    private record PendingStrike(net.minecraft.resources.ResourceKey<Level> dimension, Vec3 origin, Vec3 target, UUID barrierId, int executeAtTick, int strikeType) {
     }
 
     private static void teleportPets(ServerPlayer player, ServerLevel source, ServerLevel destination, double x, double y, double z) {

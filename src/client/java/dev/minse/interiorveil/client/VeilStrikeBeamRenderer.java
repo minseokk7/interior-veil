@@ -25,6 +25,8 @@ public final class VeilStrikeBeamRenderer {
 
     public static void addBeam(double x, double y, double z, int durationTicks, int color) {
         BEAMS.add(new ActiveBeam(x, y, z, durationTicks, durationTicks, color));
+        // 착탄 지점 기준 최대 256m 범위 내 강력한 지진파 화면 진동 (지속시간 50틱 = 2.5초)
+        VeilCameraShake.trigger(new Vec3(x, y, z), 256.0, 2.2, 50.0);
     }
 
     public static void clientTick() {

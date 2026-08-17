@@ -4,8 +4,10 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "BeaconRendererMixin",
+    "CameraMixin",
     "FogRendererMixin",
-    "GuiMapMixin"
+    "GuiMapMixin",
+    "MinimapRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -64,6 +64,10 @@ public class VeilForcefieldRenderer {
 
         if (radius <= 0) radius = 1.0;
 
+        long time = System.currentTimeMillis();
+        float pulse = (float) (Math.sin(time * 0.002) * 0.15 + 0.85);
+        int finalAlpha = Math.max(20, Math.min(255, (int) (a * pulse)));
+
         for (int latNumber = 0; latNumber < latitudeBands; latNumber++) {
             float theta1 = (float) (latNumber * Math.PI / latitudeBands);
             float theta2 = (float) ((latNumber + 1) * Math.PI / latitudeBands);
@@ -98,11 +102,13 @@ public class VeilForcefieldRenderer {
                 float y4 = (float) (centerY + radiusY * cosTheta1 - camera.y);
                 float z4 = (float) (centerZ + radius * sinPhi2 * sinTheta1 - camera.z);
 
-                // 단일 쿼드 렌더링 (Z-fighting 중복 노이즈 방지)
-                addVertex(consumer, pose, x1, y1, z1, r, g, b, a);
-                addVertex(consumer, pose, x2, y2, z2, r, g, b, a);
-                addVertex(consumer, pose, x3, y3, z3, r, g, b, a);
-                addVertex(consumer, pose, x4, y4, z4, r, g, b, a);
+                // 육각형 그리드 느낌의 교차 와이어프레임 셰이딩
+                int cellAlpha = ((latNumber + longNumber) % 2 == 0) ? finalAlpha : (int) (finalAlpha * 0.6f);
+
+                addVertex(consumer, pose, x1, y1, z1, r, g, b, cellAlpha);
+                addVertex(consumer, pose, x2, y2, z2, r, g, b, cellAlpha);
+                addVertex(consumer, pose, x3, y3, z3, r, g, b, cellAlpha);
+                addVertex(consumer, pose, x4, y4, z4, r, g, b, cellAlpha);
             }
         }
     }

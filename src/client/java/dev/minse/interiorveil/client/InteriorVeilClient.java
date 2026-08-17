@@ -78,6 +78,7 @@ public final class InteriorVeilClient implements ClientModInitializer {
         );
         VeilKeyBindings.register();
         VeilXaeroIntegration.initialize();
+        VeilTacticalHudRenderer.register();
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (!(screen instanceof BeaconScreen) || VeilConfigClientState.current() == null) {
                 return;
@@ -98,10 +99,12 @@ public final class InteriorVeilClient implements ClientModInitializer {
             VeilBeaconColorState.clear();
             VeilForcefieldRenderer.clear();
             VeilStrikeBeamRenderer.clear();
+            VeilCameraShake.clear();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             VeilFogState.tick(client);
             VeilStrikeBeamRenderer.clientTick();
+            VeilCameraShake.clientTick();
 
             // 단축키 입력 처리
             while (VeilKeyBindings.OPEN_CONFIG.consumeClick()) {
