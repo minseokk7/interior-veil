@@ -42,39 +42,148 @@ public final class VeilStrikeBeamRenderer {
             // 착탄 초기 160틱(8초) 동안 파티클 효과
             int elapsed = beam.maxTicks - beam.ticksRemaining;
             if (level != null && elapsed < 160) {
-                if (isEmp) {
-                    // [고고도 EMP 전용] 상공 200블럭 위에서 퍼져나가는 푸른 전기 스파크 링 파티클
+                dev.minse.interiorveil.network.ForcefieldStatePayload veilState = VeilForcefieldRenderer.getCurrentState();
+
+                // 1. ⚡ [EMP 전용 파티클 (0x00E5FF)]
+                if (beam.color == 0x00E5FF) {
                     if (elapsed < 80) {
                         float p = (float) elapsed / 80.0f;
                         double empRadius = Math.pow(p, 0.6) * 180.0;
                         double empCenterY = beam.y + 200.0;
 
-                        for (int i = 0; i < 30; i++) {
+                        for (int i = 0; i < 25; i++) {
                             double angle = Math.random() * 2.0 * Math.PI;
                             double px = beam.x + Math.cos(angle) * empRadius;
                             double pz = beam.z + Math.sin(angle) * empRadius;
                             double py = empCenterY + (Math.random() - 0.5) * 8.0;
+                            if (isInsideVeil(px, pz, veilState)) continue;
 
                             level.addParticle(ParticleTypes.ELECTRIC_SPARK, px, py, pz, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2);
                             if (Math.random() < 0.3) {
                                 level.addParticle(ParticleTypes.GLOW, px, py, pz, 0, 0, 0);
                             }
                         }
-
-                        // 지상으로 떨어지는 전자기 잔류 방전 스파크
                         for (int i = 0; i < 8; i++) {
                             double angle = Math.random() * 2.0 * Math.PI;
                             double gr = Math.random() * empRadius * 0.8;
                             double gx = beam.x + Math.cos(angle) * gr;
                             double gz = beam.z + Math.sin(angle) * gr;
-                            double gy = beam.y + Math.random() * 4.0;
-                            level.addParticle(ParticleTypes.ELECTRIC_SPARK, gx, gy, gz, 0, 0.05, 0);
+                            if (isInsideVeil(gx, gz, veilState)) continue;
+                            level.addParticle(ParticleTypes.ELECTRIC_SPARK, gx, beam.y + Math.random() * 3.0, gz, 0, 0.05, 0);
                         }
                     }
                     return beam.ticksRemaining <= 0;
                 }
 
-                // 1. [고폭탄 전용] 착탄 중심부 거대 분화 파티클
+                // 2. 📦 [보급 포드 전용 파티클 (0x55FF55)]
+                if (beam.color == 0x55FF55) {
+                    if (elapsed < 60) {
+                        for (int i = 0; i < 12; i++) {
+                            double angle = Math.random() * 2.0 * Math.PI;
+                            double r = Math.random() * 4.0;
+                            double px = beam.x + Math.cos(angle) * r;
+                            double pz = beam.z + Math.sin(angle) * r;
+                            level.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, px, beam.y + 0.2, pz, Math.cos(angle) * 0.15, 0.08, Math.sin(angle) * 0.15);
+                            level.addParticle(ParticleTypes.FIREWORK, px, beam.y + 0.5, pz, 0, 0.1, 0);
+                        }
+                    }
+                    return beam.ticksRemaining <= 0;
+                }
+
+                // 3. ❄️ [극저온 동결탄 전용 파티클 (0x80D8FF)]
+                if (beam.color == 0x80D8FF) {
+                    if (elapsed < 120) {
+                        float cp = (float) elapsed / 120.0f;
+                        double cryoRadius = Math.pow(cp, 0.5) * 48.0;
+                        for (int i = 0; i < 30; i++) {
+                            double angle = Math.random() * 2.0 * Math.PI;
+                            double r = Math.random() * cryoRadius;
+                            double px = beam.x + Math.cos(angle) * r;
+                            double pz = beam.z + Math.sin(angle) * r;
+                            if (isInsideVeil(px, pz, veilState)) continue;
+
+                            double py = beam.y + Math.random() * 5.0;
+                            level.addParticle(ParticleTypes.SNOWFLAKE, px, py, pz, (Math.random() - 0.5) * 0.15, -0.05, (Math.random() - 0.5) * 0.15);
+                            if (Math.random() < 0.3) {
+                                level.addParticle(ParticleTypes.DRIPPING_WATER, px, py + 1.0, pz, 0, -0.1, 0);
+                            }
+                        }
+                    }
+                    return beam.ticksRemaining <= 0;
+                }
+
+                // 4. 🕳️ [중력 특이점 탄 전용 파티클 (0x9400D3)]
+                if (beam.color == 0x9400D3) {
+                    if (elapsed < 140) {
+                        for (int i = 0; i < 35; i++) {
+                            double angle = Math.random() * 2.0 * Math.PI;
+                            double r = 4.0 + Math.random() * 44.0;
+                            double px = beam.x + Math.cos(angle) * r;
+                            double pz = beam.z + Math.sin(angle) * r;
+                            double py = beam.y + 1.5 + (Math.random() - 0.5) * 8.0;
+
+                            // 중심부(beam.x, beam.y + 1.5, beam.z)를 향해 빨려 들어가는 흡입 벡터
+                            double vx = (beam.x - px) * 0.08 - Math.sin(angle) * 0.15;
+                            double vz = (beam.z - pz) * 0.08 + Math.cos(angle) * 0.15;
+                            double vy = (beam.y + 1.5 - py) * 0.05;
+
+                            level.addParticle(ParticleTypes.PORTAL, px, py, pz, vx, vy, vz);
+                            if (Math.random() < 0.25) {
+                                level.addParticle(ParticleTypes.REVERSE_PORTAL, px, py, pz, vx * 0.5, vy * 0.5, vz * 0.5);
+                            }
+                            if (Math.random() < 0.15) {
+                                level.addParticle(ParticleTypes.WITCH, px, py, pz, vx, vy, vz);
+                            }
+                        }
+                    }
+                    return beam.ticksRemaining <= 0;
+                }
+
+                // 5. ☣️ [나노 낙진탄 전용 파티클 (0x00FF66)]
+                if (beam.color == 0x00FF66) {
+                    if (elapsed < 160) {
+                        float np = (float) elapsed / 160.0f;
+                        double nanoRadius = Math.min(48.0, 10.0 + np * 38.0);
+                        for (int i = 0; i < 28; i++) {
+                            double angle = Math.random() * 2.0 * Math.PI;
+                            double r = Math.random() * nanoRadius;
+                            double px = beam.x + Math.cos(angle) * r;
+                            double pz = beam.z + Math.sin(angle) * r;
+                            if (isInsideVeil(px, pz, veilState)) continue;
+
+                            double py = beam.y + 0.2 + Math.random() * 3.5;
+                            level.addParticle(ParticleTypes.SPORE_BLOSSOM_AIR, px, py, pz, (Math.random() - 0.5) * 0.05, 0.02, (Math.random() - 0.5) * 0.05);
+                            if (Math.random() < 0.2) {
+                                level.addParticle(ParticleTypes.SCULK_SOUL, px, py, pz, 0, 0.04, 0);
+                            }
+                            if (Math.random() < 0.15) {
+                                level.addParticle(ParticleTypes.MYCELIUM, px, py, pz, 0, 0, 0);
+                            }
+                        }
+                    }
+                    return beam.ticksRemaining <= 0;
+                }
+
+                // 6. 🛡️ [방어막 포드 전용 파티클 (0xFFD700)]
+                if (beam.color == 0xFFD700) {
+                    if (elapsed < 80) {
+                        for (int i = 0; i < 20; i++) {
+                            double angle = Math.random() * 2.0 * Math.PI;
+                            double r = 16.0; // 16m 방어 돔 경계
+                            double px = beam.x + Math.cos(angle) * r;
+                            double pz = beam.z + Math.sin(angle) * r;
+                            double py = beam.y + Math.random() * 12.0;
+
+                            level.addParticle(ParticleTypes.TOTEM_OF_UNDYING, px, py, pz, 0, 0.05, 0);
+                            if (Math.random() < 0.3) {
+                                level.addParticle(ParticleTypes.ENCHANT, px, py, pz, 0, 0.1, 0);
+                            }
+                        }
+                    }
+                    return beam.ticksRemaining <= 0;
+                }
+
+                // 7. 💥 [고폭탄 전용 파티클 (0xFF2222)]
                 if (elapsed < 80) {
                     for (int i = 0; i < 15; i++) {
                         double angle = Math.random() * 2.0 * Math.PI;
@@ -88,7 +197,6 @@ public final class VeilStrikeBeamRenderer {
                 float p1 = (float) Math.min(80, elapsed) / 80.0f;
                 double currentWaveRadius = Math.pow(p1, 0.65) * 240.0;
 
-                dev.minse.interiorveil.network.ForcefieldStatePayload veilState = VeilForcefieldRenderer.getCurrentState();
                 boolean playerInsideVeil = false;
                 if (player != null && veilState != null) {
                     double distPlayerToVeil = Math.sqrt(Math.pow(player.getX() - veilState.centerX(), 2) + Math.pow(player.getZ() - veilState.centerZ(), 2));
@@ -277,22 +385,44 @@ public final class VeilStrikeBeamRenderer {
             int g = (beam.color >> 8) & 0xFF;
             int b = beam.color & 0xFF;
 
-            boolean isHE = (beam.color == 0xFF2222);
-
-            if (!isHE) {
-                // [에너지/전술탄 전용 (EMP, 동결, 특이점, 낙진, 방어막)] 결계 내부 침투를 완벽 차단하는 전술 링 및 지표면 파동 렌더링
-                if (elapsed < 140) {
-                    drawEnergyShockwaveRings(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState, r, g, b);
+            switch (beam.color) {
+                case 0x00E5FF -> { // ⚡ 1: EMP 전자기 펄스탄
+                    if (elapsed < 140) {
+                        drawEmpTacticalDischarge(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
+                    }
                 }
-            } else {
-                // [고폭탄 전용] 1. 다단계 초고속 열폭풍 충격파 파동 렌더링 (착탄 초기 160틱 = 8초)
-                if (elapsed < 160) {
-                    drawCascadingThermalStorm(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                case 0x55FF55 -> { // 📦 2: 궤도 보급 포드
+                    if (elapsed < 120) {
+                        drawSupplyDropPod(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
+                    }
                 }
-
-                // 2. 실사 3D 핵폭발 버섯구름 렌더링 (착탄 후 360틱 = 18초 지속)
-                if (elapsed < 360) {
-                    drawCinematicNuclearCloud(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                case 0x80D8FF -> { // ❄️ 3: 극저온 동결탄 (Cryo)
+                    if (elapsed < 140) {
+                        drawCryoBlizzardSpire(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
+                    }
+                }
+                case 0x9400D3 -> { // 🕳️ 4: 중력 특이점 탄 (Singularity)
+                    if (elapsed < 160) {
+                        drawGravitySingularity(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
+                    }
+                }
+                case 0x00FF66 -> { // ☣️ 5: 나노 독소 / 낙진탄 (Nanite Fallout)
+                    if (elapsed < 160) {
+                        drawNaniteToxicCloud(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
+                    }
+                }
+                case 0xFFD700 -> { // 🛡️ 6: 궤도 드롭 방어막 포드 (Shield Pod)
+                    if (elapsed < 140) {
+                        drawDeployableShieldDeployment(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
+                    }
+                }
+                default -> { // 💥 0: 고폭 열폭풍탄 (HE)
+                    if (elapsed < 160) {
+                        drawCascadingThermalStorm(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                    }
+                    if (elapsed < 360) {
+                        drawCinematicNuclearCloud(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                    }
                 }
             }
 
@@ -307,6 +437,8 @@ public final class VeilStrikeBeamRenderer {
             double startY = beam.y;
             double endY = Math.min(320.0, startY + 256.0);
 
+            boolean isHE = (beam.color == 0xFF2222);
+
             // 내부 코어 빔
             drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, !isHE ? 0.25f : 0.4f, coreR, coreG, coreB, coreAlpha, anim);
             // 외부 글로우 빔
@@ -318,105 +450,355 @@ public final class VeilStrikeBeamRenderer {
         }
     }
 
-    /**
-     * 에너지 전술 탄종(EMP, 동결탄, 특이점탄, 나노낙진탄, 방어막포드) 전용 궤도 가속 코일 링 & 3D 네온 마하 링 & 지표면 동심원 파동 렌더링.
-     */
-    private static void drawEnergyShockwaveRings(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            Vec3 camPos,
-            Vector3f right,
-            Vector3f up,
-            ActiveBeam beam,
-            int elapsed,
-            float anim,
-            dev.minse.interiorveil.network.ForcefieldStatePayload veilState,
-            int beamR, int beamG, int beamB
+    // =========================================================================
+    // ⚡ Type 1: EMP 전자기 펄스탄 전용 렌더링 (고고도 방전 구체 + 번개 아크 + 전자기 서킷 파동)
+    // =========================================================================
+    private static void drawEmpTacticalDischarge(
+            VertexConsumer consumer, PoseStack.Pose pose, Vec3 camPos, Vector3f right, Vector3f up,
+            ActiveBeam beam, int elapsed, float anim, dev.minse.interiorveil.network.ForcefieldStatePayload veilState
     ) {
         double empCenterY = beam.y + 200.0;
         double startY = beam.y;
         double endY = Math.min(320.0, startY + 256.0);
         double beamHeight = endY - startY;
 
-        // --- 1. [Orbital Coil Rings] 수직 궤도 레일건 축을 따라 초고속으로 하강하는 전자기 가속 링 (6개) ---
+        // 1. 수직 레일건 가속 코일 링 (6개)
         int coilCount = 6;
         for (int c = 0; c < coilCount; c++) {
             double ringY = endY - ((elapsed * 9.0 + c * (beamHeight / coilCount)) % beamHeight);
             if (ringY < startY || ringY > endY) continue;
-
             float coilFade = (float) Math.sin((ringY - startY) / beamHeight * Math.PI);
             float coilRadius = (float) (2.5 + Math.sin(c * 1.5 + anim * 2.0) * 0.8);
             int coilNodes = 16;
-
             for (int i = 0; i < coilNodes; i++) {
                 double angle = (i * 2.0 * Math.PI / coilNodes) + anim * 0.2;
                 double px = beam.x + Math.cos(angle) * coilRadius;
                 double pz = beam.z + Math.sin(angle) * coilRadius;
                 if (isInsideVeil(px, pz, veilState)) continue;
-                float size = 1.6f;
-
-                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size, beamR, beamG, beamB, (int) (240 * coilFade));
-                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size * 0.5f, 255, 255, 255, (int) (255 * coilFade));
+                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, 1.6f, 0, 229, 255, (int) (240 * coilFade));
+                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, 0.8f, 255, 255, 255, (int) (255 * coilFade));
             }
         }
 
-        // --- 2. [Double Helix] 레일건 빔을 휘감아 회전하는 이중 나선 플라즈마 스트림 ---
-        int helixSteps = 24;
-        for (int h = 0; h < 2; h++) {
-            double helixPhase = h * Math.PI;
-            for (int s = 0; s < helixSteps; s++) {
-                double t = (double) s / helixSteps;
-                double hy = startY + t * beamHeight;
-                double hAngle = t * 16.0 * Math.PI - anim * 0.6 + helixPhase;
-                double hr = 1.4 + Math.sin(t * 8.0) * 0.4;
-                double hx = beam.x + Math.cos(hAngle) * hr;
-                double hz = beam.z + Math.sin(hAngle) * hr;
-                if (isInsideVeil(hx, hz, veilState)) continue;
-
-                drawSoftPuff(consumer, pose, camPos, hx, hy, hz, right, up, 1.4f, beamR, beamG, beamB, 160);
-            }
+        // 2. 상공 200m EMP 고전압 테슬라 방전 구체
+        for (int i = 0; i < 24; i++) {
+            double a1 = i * Math.PI / 12.0 + anim * 0.4;
+            double a2 = i * 2.0 * Math.PI / 24.0 - anim * 0.3;
+            double sx = beam.x + Math.cos(a1) * Math.sin(a2) * 8.0;
+            double sy = empCenterY + Math.cos(a2) * 8.0;
+            double sz = beam.z + Math.sin(a1) * Math.sin(a2) * 8.0;
+            drawSoftPuff(consumer, pose, camPos, sx, sy, sz, right, up, 3.5f, 0, 229, 255, 220);
+            drawSoftPuff(consumer, pose, camPos, sx, sy, sz, right, up, 1.5f, 255, 255, 255, 255);
         }
 
-        // --- 3. [Concentric 3D Torus Mach Rings] 상공 200m 6중 입체 네온 도넛 튜브 고리 (결계 침투 차단) ---
-        int ringCount = 6;
-        int ringInterval = 8;
-        int ringLifetime = 60;
-
-        for (int r = 0; r < ringCount; r++) {
-            int ringStartTick = r * ringInterval;
-            int ringElapsed = elapsed - ringStartTick;
-            if (ringElapsed >= 0 && ringElapsed < ringLifetime) {
-                float p = (float) ringElapsed / ringLifetime;
+        // 3. 상공 200m 6중 3D 토러스 마하 링
+        for (int r = 0; r < 6; r++) {
+            int ringElapsed = elapsed - r * 8;
+            if (ringElapsed >= 0 && ringElapsed < 60) {
+                float p = (float) ringElapsed / 60.0f;
                 double radius = Math.pow(p, 0.58) * 280.0;
                 float alpha = (1.0f - p) * 0.95f;
-
                 if (alpha > 0.01f && radius > 0.5) {
-                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, beamR, beamG, beamB, (int) (240 * alpha), veilState);
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, 0, 229, 255, (int) (240 * alpha), veilState);
                     drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 1.0f, 255, 255, 255, (int) (255 * alpha), veilState);
                 }
             }
         }
 
-        // --- 4. [Ground Surface Concentric Wave Rings] 바닥 지표면에 바짝 밀착되어 쫙 퍼져나가는 6중 평면 동심원 파동 (결계 침투 차단) ---
-        int groundRingCount = 6;
-        int groundInterval = 7;
-        int groundLifetime = 50;
-
-        for (int grIdx = 0; grIdx < groundRingCount; grIdx++) {
-            int gStart = grIdx * groundInterval;
-            int gElapsed = elapsed - gStart;
-            if (gElapsed >= 0 && gElapsed < groundLifetime) {
-                float gp = (float) gElapsed / (float) groundLifetime;
+        // 4. 지표면 6중 전자기 서킷 파동
+        for (int grIdx = 0; grIdx < 6; grIdx++) {
+            int gElapsed = elapsed - grIdx * 7;
+            if (gElapsed >= 0 && gElapsed < 50) {
+                float gp = (float) gElapsed / 50.0f;
                 double gr = Math.pow(gp, 0.55) * 220.0;
                 float ga = (1.0f - gp) * 0.95f;
-
                 if (ga > 0.01f && gr > 0.5) {
                     float ringWidth = (float) (2.5 + gp * 6.0);
-                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, beamR, beamG, beamB, (int) (240 * ga), veilState);
+                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, 0, 229, 255, (int) (240 * ga), veilState);
                     drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, gr, ringWidth * 0.35f, 255, 255, 255, (int) (255 * ga), veilState);
                 }
             }
         }
+    }
+
+    // =========================================================================
+    // 📦 Type 2: 궤도 보급 포드 전용 렌더링 (4방향 유도 비콘 + 회전 랜딩 패드 + 감속 제트)
+    // =========================================================================
+    private static void drawSupplyDropPod(
+            VertexConsumer consumer, PoseStack.Pose pose, Vec3 camPos, Vector3f right, Vector3f up,
+            ActiveBeam beam, int elapsed, float anim, dev.minse.interiorveil.network.ForcefieldStatePayload veilState
+    ) {
+        // 1. 착탄 지점을 향해 꽂히는 4방향 대각선 유도 비콘 라인 (Tactical Landing Laser Beacons)
+        int beaconDist = 24;
+        double[][] beaconOrigins = {
+                {beam.x + beaconDist, beam.z + beaconDist},
+                {beam.x - beaconDist, beam.z + beaconDist},
+                {beam.x + beaconDist, beam.z - beaconDist},
+                {beam.x - beaconDist, beam.z - beaconDist}
+        };
+        for (double[] bPos : beaconOrigins) {
+            for (int step = 0; step < 20; step++) {
+                double t = (double) step / 20.0;
+                double lx = bPos[0] + (beam.x - bPos[0]) * t;
+                double lz = bPos[1] + (beam.z - bPos[1]) * t;
+                double ly = (beam.y + 40.0 * (1.0 - t));
+                drawSoftPuff(consumer, pose, camPos, lx, ly, lz, right, up, 0.6f, 85, 255, 85, 200);
+            }
+        }
+
+        // 2. 3중 회전 전술 랜딩 패드 홀로그램 링 (Holographic Landing Pad)
+        double[] padRadii = {4.0, 8.0, 14.0};
+        for (int pIdx = 0; pIdx < padRadii.length; pIdx++) {
+            double r = padRadii[pIdx];
+            float rotDir = (pIdx % 2 == 0) ? 1.0f : -1.0f;
+            int nodes = 24;
+            for (int i = 0; i < nodes; i++) {
+                double angle = (i * 2.0 * Math.PI / nodes) + anim * rotDir * 0.5;
+                double px = beam.x + Math.cos(angle) * r;
+                double pz = beam.z + Math.sin(angle) * r;
+                drawSoftPuff(consumer, pose, camPos, px, beam.y + 0.2, pz, right, up, 0.8f, 85, 255, 85, 220);
+                if (i % 6 == 0) {
+                    // 패드 코너 마커 포인트
+                    drawSoftPuff(consumer, pose, camPos, px, beam.y + 0.4, pz, right, up, 1.4f, 255, 255, 255, 255);
+                }
+            }
+        }
+
+        // 3. 착탄 시 방출되는 냉각 증기 및 감압 링 (Cooling Vent Steam Waves)
+        for (int v = 0; v < 3; v++) {
+            int vElapsed = elapsed - v * 12;
+            if (vElapsed >= 0 && vElapsed < 40) {
+                float vp = (float) vElapsed / 40.0f;
+                double vr = Math.pow(vp, 0.6) * 20.0;
+                float va = (1.0f - vp) * 0.8f;
+                drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.1, beam.z, vr, 1.5f, 220, 255, 220, (int) (220 * va), veilState);
+            }
+        }
+    }
+
+    // =========================================================================
+    // ❄️ Type 3: 극저온 동결탄 전용 렌더링 (서리 크리스탈 스파이어 + 6각 눈꽃 결정 룬 + 빙결 파동)
+    // =========================================================================
+    private static void drawCryoBlizzardSpire(
+            VertexConsumer consumer, PoseStack.Pose pose, Vec3 camPos, Vector3f right, Vector3f up,
+            ActiveBeam beam, int elapsed, float anim, dev.minse.interiorveil.network.ForcefieldStatePayload veilState
+    ) {
+        double startY = beam.y;
+        double endY = Math.min(320.0, startY + 256.0);
+        double beamHeight = endY - startY;
+
+        // 1. 수직 6각 기둥 서리 크리스탈 스파이어 (Glacial Crystal Spire)
+        int spireSlices = 36;
+        for (int s = 0; s < spireSlices; s++) {
+            double t = (double) s / spireSlices;
+            double sy = startY + t * beamHeight;
+            double baseR = (1.0 - t * 0.6) * 3.5;
+            for (int i = 0; i < 6; i++) {
+                double angle = i * Math.PI / 3.0 + anim * 0.15;
+                double px = beam.x + Math.cos(angle) * baseR;
+                double pz = beam.z + Math.sin(angle) * baseR;
+                if (isInsideVeil(px, pz, veilState)) continue;
+                drawSoftPuff(consumer, pose, camPos, px, sy, pz, right, up, 2.0f, 128, 216, 255, 210);
+                drawSoftPuff(consumer, pose, camPos, px, sy, pz, right, up, 0.9f, 255, 255, 255, 255);
+            }
+        }
+
+        // 2. 바닥 6방향 대칭 프랙탈 눈꽃 결정 룬 그리드 (Hexagonal Fractal Snowflake Grid)
+        for (int arm = 0; arm < 6; arm++) {
+            double armAngle = arm * Math.PI / 3.0;
+            double armLength = Math.min(48.0, 4.0 + elapsed * 1.8);
+            for (double d = 2.0; d < armLength; d += 2.0) {
+                double px = beam.x + Math.cos(armAngle) * d;
+                double pz = beam.z + Math.sin(armAngle) * d;
+                if (isInsideVeil(px, pz, veilState)) continue;
+                drawSoftPuff(consumer, pose, camPos, px, beam.y + 0.15, pz, right, up, 1.2f, 128, 216, 255, 230);
+
+                // 눈꽃 결정 가지 (Branches)
+                if ((int) d % 6 == 0) {
+                    for (int side = -1; side <= 1; side += 2) {
+                        double bAngle = armAngle + side * (Math.PI / 4.0);
+                        double bx = px + Math.cos(bAngle) * 3.0;
+                        double bz = pz + Math.sin(bAngle) * 3.0;
+                        if (!isInsideVeil(bx, bz, veilState)) {
+                            drawSoftPuff(consumer, pose, camPos, bx, beam.y + 0.15, bz, right, up, 0.8f, 200, 240, 255, 240);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. 지표면 급속 결빙 서리 충격파 링 (Frost Shockwave Rings)
+        for (int fr = 0; fr < 5; fr++) {
+            int fElapsed = elapsed - fr * 8;
+            if (fElapsed >= 0 && fElapsed < 45) {
+                float fp = (float) fElapsed / 45.0f;
+                double frad = Math.pow(fp, 0.55) * 64.0;
+                float fa = (1.0f - fp) * 0.9f;
+                drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.12, beam.z, frad, 3.0f, 128, 216, 255, (int) (230 * fa), veilState);
+                drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, frad, 1.0f, 255, 255, 255, (int) (255 * fa), veilState);
+            }
+        }
+    }
+
+    // =========================================================================
+    // 🕳️ Type 4: 중력 특이점 탄 전용 렌더링 (블랙홀 코어 + 3중 강착원반 + 12개 중력 흡입 와류)
+    // =========================================================================
+    private static void drawGravitySingularity(
+            VertexConsumer consumer, PoseStack.Pose pose, Vec3 camPos, Vector3f right, Vector3f up,
+            ActiveBeam beam, int elapsed, float anim, dev.minse.interiorveil.network.ForcefieldStatePayload veilState
+    ) {
+        double coreY = beam.y + 3.0;
+
+        // 1. 중심부 칠흑 같은 암흑 블랙홀 구체 (Dark Event Horizon Core)
+        for (int lat = -8; lat <= 8; lat++) {
+            double phi = lat * Math.PI / 16.0;
+            double rRing = Math.cos(phi) * 4.5;
+            double yRing = coreY + Math.sin(phi) * 4.5;
+            for (int lon = 0; lon < 16; lon++) {
+                double theta = lon * 2.0 * Math.PI / 16.0;
+                double px = beam.x + Math.cos(theta) * rRing;
+                double pz = beam.z + Math.sin(theta) * rRing;
+                drawSoftPuff(consumer, pose, camPos, px, yRing, pz, right, up, 2.2f, 20, 0, 40, 255); // 칠흑 같은 암흑
+                drawSoftPuff(consumer, pose, camPos, px, yRing, pz, right, up, 1.2f, 148, 0, 211, 200); // 보라색 경계광
+            }
+        }
+
+        // 2. 서로 다른 3개 축으로 맹렬히 회전하는 3중 강착원반 (3-Axis Accretion Disks)
+        double[] diskRadii = {9.0, 16.0, 24.0};
+        for (int d = 0; d < 3; d++) {
+            double diskR = diskRadii[d];
+            double tiltAngle = (d - 1) * (Math.PI / 4.0); // -45도, 0도, +45도 기울임
+            int nodes = 32;
+            for (int i = 0; i < nodes; i++) {
+                double a = i * 2.0 * Math.PI / nodes + anim * (2.0 - d * 0.5);
+                double lx = Math.cos(a) * diskR;
+                double lz = Math.sin(a) * diskR;
+                double ly = Math.sin(a) * Math.sin(tiltAngle) * diskR * 0.4;
+                double px = beam.x + lx;
+                double py = coreY + ly;
+                double pz = beam.z + lz;
+                drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, 2.5f, 148, 0, 211, 240);
+                drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, 1.0f, 255, 128, 255, 255);
+            }
+        }
+
+        // 3. 주변 48m 공간에서 중심으로 나선을 그리며 빨려 들어가는 12개 중력 흡입 와류선 (Inward Gravitational Stream Lines)
+        int streamCount = 12;
+        for (int s = 0; s < streamCount; s++) {
+            double baseAngle = s * 2.0 * Math.PI / streamCount;
+            for (int step = 0; step < 24; step++) {
+                double t = (double) step / 24.0;
+                double dist = 4.5 + t * 44.0; // 4.5m ~ 48m
+                double spiralAngle = baseAngle + t * 5.0 * Math.PI - anim * 1.5;
+                double px = beam.x + Math.cos(spiralAngle) * dist;
+                double pz = beam.z + Math.sin(spiralAngle) * dist;
+                double py = coreY + (Math.sin(t * Math.PI) * 6.0 * (1.0 - t));
+                if (isInsideVeil(px, pz, veilState)) continue;
+
+                int alpha = (int) (220 * (1.0 - t * 0.6));
+                drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, 1.5f, 100, 0, 180, alpha);
+            }
+        }
+    }
+
+    // =========================================================================
+    // ☣️ Type 5: 나노 독소 / 낙진탄 전용 렌더링 (생화학 버블 안개 돔 + 바이오하자드 링 + 저고도 낙진 안개)
+    // =========================================================================
+    private static void drawNaniteToxicCloud(
+            VertexConsumer consumer, PoseStack.Pose pose, Vec3 camPos, Vector3f right, Vector3f up,
+            ActiveBeam beam, int elapsed, float anim, dev.minse.interiorveil.network.ForcefieldStatePayload veilState
+    ) {
+        float life = Math.min(1.0f, (float) elapsed / 160.0f);
+        double fogRadius = Math.min(48.0, 8.0 + life * 40.0);
+
+        // 1. 유독성 생화학 나노 안개 돔 (Bubbling Bio-Toxic Fog Dome)
+        int bubbleCount = 48;
+        for (int i = 0; i < bubbleCount; i++) {
+            double angle = (i * 2.0 * Math.PI / bubbleCount) + Math.sin(i * 1.5 + anim) * 0.2;
+            double r = Math.sin(i * 3.7 + anim * 0.5) * 0.4 * fogRadius + fogRadius * 0.6;
+            double px = beam.x + Math.cos(angle) * r;
+            double pz = beam.z + Math.sin(angle) * r;
+            double py = beam.y + 1.0 + Math.abs(Math.sin(i * 2.1 + anim * 0.8)) * 6.0;
+            if (isInsideVeil(px, pz, veilState)) continue;
+
+            float puffSize = (float) (3.0 + Math.sin(i + anim) * 1.2);
+            drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, puffSize, 0, 255, 102, 190);
+            drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, puffSize * 0.4f, 180, 255, 200, 230);
+        }
+
+        // 2. 3중 회전 바이오하자드 삼각 링 (Rotating Biohazard Tri-Ring)
+        for (int tr = 0; tr < 3; tr++) {
+            double triAngle = tr * 2.0 * Math.PI / 3.0 + anim * 0.4;
+            double triDist = fogRadius * 0.7;
+            double cx = beam.x + Math.cos(triAngle) * triDist;
+            double cz = beam.z + Math.sin(triAngle) * triDist;
+            if (isInsideVeil(cx, cz, veilState)) continue;
+            for (int a = 0; a < 16; a++) {
+                double sa = a * 2.0 * Math.PI / 16.0;
+                double px = cx + Math.cos(sa) * 5.0;
+                double pz = cz + Math.sin(sa) * 5.0;
+                drawSoftPuff(consumer, pose, camPos, px, beam.y + 1.5, pz, right, up, 1.2f, 0, 255, 102, 210);
+            }
+        }
+
+        // 3. 지표면에 바짝 깔려 출렁이는 6중 나노 낙진 안개 장막
+        for (int gr = 0; gr < 6; gr++) {
+            double grDist = (gr + 1) * (fogRadius / 6.0);
+            drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.1, beam.z, grDist, 4.0f, 0, 255, 102, 180, veilState);
+        }
+    }
+
+    // =========================================================================
+    // 🛡️ Type 6: 궤도 드롭 방어막 포드 전용 렌더링 (황금빛 육각 허니컴 보호막 메쉬 + 4방향 앵커 빔)
+    // =========================================================================
+    private static void drawDeployableShieldDeployment(
+            VertexConsumer consumer, PoseStack.Pose pose, Vec3 camPos, Vector3f right, Vector3f up,
+            ActiveBeam beam, int elapsed, float anim, dev.minse.interiorveil.network.ForcefieldStatePayload veilState
+    ) {
+        double domeRadius = 16.0; // 16m 방어 돔
+
+        // 1. 착탄 지점에서 지면으로부터 솟구쳐 전개되는 황금빛 정육각형 허니컴 보호막 메쉬 (Honeycomb Shield Mesh)
+        int latBands = 16;
+        int lonBands = 24;
+        for (int lat = 0; lat <= latBands; lat++) {
+            double theta = (lat * Math.PI / (latBands * 2.0)); // 0도 ~ 90도 (반구)
+            double sinT = Math.sin(theta);
+            double cosT = Math.cos(theta);
+            double ringY = beam.y + sinT * domeRadius;
+            double ringR = cosT * domeRadius;
+
+            for (int lon = 0; lon < lonBands; lon++) {
+                double phi = lon * 2.0 * Math.PI / lonBands + (lat % 2 == 1 ? Math.PI / lonBands : 0.0);
+                double px = beam.x + Math.cos(phi) * ringR;
+                double pz = beam.z + Math.sin(phi) * ringR;
+
+                float nodeSize = (lon % 4 == 0) ? 1.8f : 0.9f;
+                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, nodeSize, 255, 215, 0, 220);
+                if (lon % 4 == 0) {
+                    drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, nodeSize * 0.4f, 255, 255, 255, 255);
+                }
+            }
+        }
+
+        // 2. 4개 코너 앵커 안정화 역장 빔 (Golden Anchor Field Beams)
+        double anchorDist = domeRadius * 1.1;
+        double[][] anchors = {
+                {beam.x + anchorDist, beam.z},
+                {beam.x - anchorDist, beam.z},
+                {beam.x, beam.z + anchorDist},
+                {beam.x, beam.z - anchorDist}
+        };
+        for (double[] anc : anchors) {
+            for (int h = 0; h < 12; h++) {
+                double ay = beam.y + h * 1.2;
+                drawSoftPuff(consumer, pose, camPos, anc[0], ay, anc[1], right, up, 1.2f, 255, 215, 0, 240);
+                drawSoftPuff(consumer, pose, camPos, anc[0], ay, anc[1], right, up, 0.5f, 255, 255, 255, 255);
+            }
+        }
+
+        // 3. 지표면 황금빛 결계 안정화 링
+        drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, domeRadius, 2.5f, 255, 215, 0, 240, veilState);
+        drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, domeRadius, 0.8f, 255, 255, 255, 255, veilState);
     }
 
     private static boolean isInsideVeil(double x, double z, dev.minse.interiorveil.network.ForcefieldStatePayload veilState) {
