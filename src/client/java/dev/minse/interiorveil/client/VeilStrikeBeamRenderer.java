@@ -317,7 +317,11 @@ public final class VeilStrikeBeamRenderer {
     }
 
     /**
-     * [고고도 EMP 전용] 착탄 지점 상공 200블럭 위에서 사방으로 웅장하게 퍼져나가는 순수 푸른 전자기 링 파동 렌더러.
+     * [오르비탈 레일건 EMP 전용]
+     * 1. 상공 200m 수평 마하 디스크 충격파 링
+     * 2. 수직 궤도 빔을 관통하며 아래로 초고속 쇄도하는 14개의 전자기 가속 코일 링 (Accelerator Rings)
+     * 3. 빔 외곽을 휘감아 도는 이중 나선(Double Helix) 플라즈마 와류
+     * 4. 지상 수평 마하 충격파 방전 링
      */
     private static void drawEmpShockwaveRings(
             VertexConsumer consumer,
@@ -330,72 +334,106 @@ public final class VeilStrikeBeamRenderer {
             float anim
     ) {
         double empCenterY = beam.y + 200.0;
+        double startY = beam.y;
+        double endY = Math.min(320.0, startY + 256.0);
+        double beamHeight = endY - startY;
 
-        // 1. 상공 200m 중심 고에너지 플라즈마 코어 섬광 (초기 40틱)
-        if (elapsed < 40) {
-            float coreProgress = (float) elapsed / 40.0f;
-            float coreAlpha = (1.0f - coreProgress) * 0.95f;
-            float coreSize = (float) (16.0 + coreProgress * 40.0);
-            drawSoftPuff(consumer, pose, camPos, beam.x, empCenterY, beam.z, right, up, coreSize, 180, 245, 255, (int) (255 * coreAlpha));
-            drawSoftPuff(consumer, pose, camPos, beam.x, empCenterY, beam.z, right, up, coreSize * 1.6f, 0, 200, 255, (int) (180 * coreAlpha));
+        // --- 1. [Orbital Coil Rings] 수직 궤도 레일건 축을 따라 초고속으로 하강하는 전자기 가속 링 (14개) ---
+        int coilCount = 14;
+        for (int c = 0; c < coilCount; c++) {
+            // 시간 경과에 따라 상공에서 지상으로 초고속 하강하는 Y 좌표
+            double ringY = endY - ((elapsed * 9.0 + c * (beamHeight / coilCount)) % beamHeight);
+            if (ringY < startY || ringY > endY) continue;
+
+            float coilFade = (float) Math.sin((ringY - startY) / beamHeight * Math.PI);
+            float coilRadius = (float) (2.5 + Math.sin(c * 1.5 + anim * 2.0) * 0.8);
+            int coilNodes = 32;
+
+            for (int i = 0; i < coilNodes; i++) {
+                double angle = (i * 2.0 * Math.PI / coilNodes) + anim * 0.2;
+                double px = beam.x + Math.cos(angle) * coilRadius;
+                double pz = beam.z + Math.sin(angle) * coilRadius;
+                float size = 1.6f;
+
+                // 눈부신 사이언 전자기 가속 코일 링
+                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size, 0, 240, 255, (int) (240 * coilFade));
+                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size * 0.5f, 220, 255, 255, (int) (255 * coilFade));
+            }
         }
 
-        // 2. [Ring 1] 메인 초음속 푸른 전자기 링 (0~75틱, 반경 0 -> 260m)
-        if (elapsed < 75) {
-            float p1 = (float) elapsed / 75.0f;
-            double r1 = Math.pow(p1, 0.62) * 260.0;
+        // --- 2. [Double Helix] 레일건 빔을 휘감아 회전하는 이중 나선 플라즈마 스트림 ---
+        int helixSteps = 60;
+        for (int h = 0; h < 2; h++) {
+            double helixPhase = h * Math.PI;
+            for (int s = 0; s < helixSteps; s++) {
+                double t = (double) s / helixSteps;
+                double hy = startY + t * beamHeight;
+                double hAngle = t * 16.0 * Math.PI - anim * 0.6 + helixPhase;
+                double hr = 1.4 + Math.sin(t * 8.0) * 0.4;
+                double hx = beam.x + Math.cos(hAngle) * hr;
+                double hz = beam.z + Math.sin(hAngle) * hr;
+
+                drawSoftPuff(consumer, pose, camPos, hx, hy, hz, right, up, 1.4f, 80, 220, 255, 160);
+            }
+        }
+
+        // --- 3. [High-Altitude Mach Shockwave Discs] 상공 200m 고고도 수평 팽창 마하 디스크 링 ---
+        // (1) 메인 초고속 마하 디스크 링 (0~65틱, 반경 0 -> 280m)
+        if (elapsed < 65) {
+            float p1 = (float) elapsed / 65.0f;
+            double r1 = Math.pow(p1, 0.55) * 280.0;
             float a1 = (1.0f - p1) * 0.95f;
             if (a1 > 0.01f && r1 > 1.0) {
-                int nodes = 64;
+                int nodes = 72;
                 for (int i = 0; i < nodes; i++) {
-                    double angle = (i * 2.0 * Math.PI / nodes) + anim * 0.05;
+                    double angle = (i * 2.0 * Math.PI / nodes) + anim * 0.06;
                     double px = beam.x + Math.cos(angle) * r1;
                     double pz = beam.z + Math.sin(angle) * r1;
-                    double py = empCenterY + Math.sin(i * 3.0 + anim) * 1.5;
-                    float size = (float) (8.0 + p1 * 18.0);
+                    double py = empCenterY;
+                    float size = (float) (6.0 + p1 * 14.0);
 
-                    // 메인 네온 사이언 고리
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 235, 255, (int) (250 * a1));
-                    // 화이트 코어 하이라이트
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.45f, 220, 255, 255, (int) (255 * a1));
+                    // 얇고 예리한 마하 디스크 링 선
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 245, 255, (int) (255 * a1));
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.4f, 255, 255, 255, (int) (255 * a1));
                 }
             }
         }
 
-        // 3. [Ring 2] 2차 푸른 펄스 고리 (12~90틱, 반경 0 -> 210m)
-        if (elapsed >= 12 && elapsed < 90) {
-            float p2 = (float) (elapsed - 12) / 78.0f;
-            double r2 = Math.pow(p2, 0.7) * 210.0;
+        // (2) 2차 후속 펄스 디스크 (10~80틱, 반경 0 -> 220m)
+        if (elapsed >= 10 && elapsed < 80) {
+            float p2 = (float) (elapsed - 10) / 70.0f;
+            double r2 = Math.pow(p2, 0.65) * 220.0;
             float a2 = (1.0f - p2) * 0.85f;
             if (a2 > 0.01f && r2 > 1.0) {
-                int nodes = 54;
+                int nodes = 56;
                 for (int i = 0; i < nodes; i++) {
                     double angle = (i * 2.0 * Math.PI / nodes) - anim * 0.04;
                     double px = beam.x + Math.cos(angle) * r2;
                     double pz = beam.z + Math.sin(angle) * r2;
-                    double py = empCenterY + Math.cos(i * 2.5 + anim) * 2.0;
-                    float size = (float) (10.0 + p2 * 20.0);
+                    double py = empCenterY;
+                    float size = (float) (8.0 + p2 * 16.0);
 
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 40, 160, 255, (int) (220 * a2));
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 20, 180, 255, (int) (230 * a2));
                 }
             }
         }
 
-        // 4. [Ring 3] 3차 잔류 방전 고리 (25~110틱, 반경 0 -> 160m)
-        if (elapsed >= 25 && elapsed < 110) {
-            float p3 = (float) (elapsed - 25) / 85.0f;
-            double r3 = Math.pow(p3, 0.8) * 160.0;
-            float a3 = (1.0f - p3) * 0.75f;
-            if (a3 > 0.01f && r3 > 1.0) {
-                int nodes = 44;
+        // --- 4. [Ground Shockwave Ring] 지상 착탄 순간 수평으로 퍼져나가는 지상 마하 링 ---
+        if (elapsed < 50) {
+            float gp = (float) elapsed / 50.0f;
+            double gr = Math.pow(gp, 0.58) * 160.0;
+            float ga = (1.0f - gp) * 0.9f;
+            if (ga > 0.01f && gr > 1.0) {
+                int nodes = 48;
                 for (int i = 0; i < nodes; i++) {
-                    double angle = (i * 2.0 * Math.PI / nodes) + anim * 0.03;
-                    double px = beam.x + Math.cos(angle) * r3;
-                    double pz = beam.z + Math.sin(angle) * r3;
-                    double py = empCenterY + Math.sin(angle * 4.0 + anim) * 2.5;
-                    float size = (float) (12.0 + p3 * 22.0);
+                    double angle = (i * 2.0 * Math.PI / nodes);
+                    double px = beam.x + Math.cos(angle) * gr;
+                    double pz = beam.z + Math.sin(angle) * gr;
+                    double py = beam.y + 0.5;
+                    float size = (float) (5.0 + gp * 12.0);
 
-                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 110, 255, (int) (190 * a3));
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 230, 255, (int) (240 * ga));
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.4f, 255, 255, 255, (int) (255 * ga));
                 }
             }
         }
