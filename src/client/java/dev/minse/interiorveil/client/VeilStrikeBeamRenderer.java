@@ -757,31 +757,8 @@ public final class VeilStrikeBeamRenderer {
     ) {
         double domeRadius = 16.0; // 16m 방어 돔
 
-        // 1. 착탄 지점에서 지면으로부터 솟구쳐 전개되는 황금빛 정육각형 허니컴 보호막 메쉬 (Honeycomb Shield Mesh)
-        int latBands = 16;
-        int lonBands = 24;
-        for (int lat = 0; lat <= latBands; lat++) {
-            double theta = (lat * Math.PI / (latBands * 2.0)); // 0도 ~ 90도 (반구)
-            double sinT = Math.sin(theta);
-            double cosT = Math.cos(theta);
-            double ringY = beam.y + sinT * domeRadius;
-            double ringR = cosT * domeRadius;
-
-            for (int lon = 0; lon < lonBands; lon++) {
-                double phi = lon * 2.0 * Math.PI / lonBands + (lat % 2 == 1 ? Math.PI / lonBands : 0.0);
-                double px = beam.x + Math.cos(phi) * ringR;
-                double pz = beam.z + Math.sin(phi) * ringR;
-
-                float nodeSize = (lon % 4 == 0) ? 1.8f : 0.9f;
-                drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, nodeSize, 255, 215, 0, 220);
-                if (lon % 4 == 0) {
-                    drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, nodeSize * 0.4f, 255, 255, 255, 255);
-                }
-            }
-        }
-
-        // 2. 4개 코너 앵커 안정화 역장 빔 (Golden Anchor Field Beams)
-        double anchorDist = domeRadius * 1.1;
+        // 1. 4개 코너 앵커 안정화 역장 빔 (Golden Anchor Field Vertical Beams)
+        double anchorDist = domeRadius * 1.05;
         double[][] anchors = {
                 {beam.x + anchorDist, beam.z},
                 {beam.x - anchorDist, beam.z},
@@ -789,16 +766,17 @@ public final class VeilStrikeBeamRenderer {
                 {beam.x, beam.z - anchorDist}
         };
         for (double[] anc : anchors) {
-            for (int h = 0; h < 12; h++) {
-                double ay = beam.y + h * 1.2;
-                drawSoftPuff(consumer, pose, camPos, anc[0], ay, anc[1], right, up, 1.2f, 255, 215, 0, 240);
-                drawSoftPuff(consumer, pose, camPos, anc[0], ay, anc[1], right, up, 0.5f, 255, 255, 255, 255);
-            }
+            double startY = beam.y;
+            double endY = beam.y + 14.0;
+            // 앵커 내부 코어
+            drawVerticalBeam(consumer, pose, camPos, anc[0], anc[1], startY, endY, 0.2f, 255, 255, 255, 220, anim);
+            // 앵커 외부 황금빛 글로우
+            drawVerticalBeam(consumer, pose, camPos, anc[0], anc[1], startY, endY, 0.5f, 255, 215, 0, 180, -anim * 0.5f);
         }
 
-        // 3. 지표면 황금빛 결계 안정화 링
-        drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, domeRadius, 2.5f, 255, 215, 0, 240, veilState);
-        drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, domeRadius, 0.8f, 255, 255, 255, 255, veilState);
+        // 2. 지표면 황금빛 결계 안정화 룬 링
+        drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, domeRadius, 2.0f, 255, 215, 0, 240, veilState);
+        drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, domeRadius, 0.6f, 255, 255, 255, 255, veilState);
     }
 
     private static boolean isInsideVeil(double x, double z, dev.minse.interiorveil.network.ForcefieldStatePayload veilState) {

@@ -457,6 +457,7 @@ public final class VeilManager {
         tickCounter++;
         if (tickCounter % 20 == 0) {
             removeInvalidBarriers();
+            tickTemporaryShieldDomes();
             synchronizeEnvironment();
             tickAttackModes();
             tickStrikeBeams();
@@ -1045,6 +1046,10 @@ public final class VeilManager {
         }
         java.util.List<VeilBarrier> invalid = barriers.values().stream()
                 .filter(barrier -> {
+                    // 5분 임시 방어 돔은 신호기가 없으므로 5분 만료 전까지 삭제 검사에서 제외
+                    if (pendingRemovals.containsKey(barrier.id())) {
+                        return false;
+                    }
                     ServerLevel source = server.getLevel(barrier.sourceKey());
                     if (source == null) {
                         return false; // 차원이 아직 로드되지 않은 경우 삭제하지 않음
@@ -1084,6 +1089,26 @@ public final class VeilManager {
         });
         if (!invalid.isEmpty()) {
             save();
+        }
+    }
+
+    private void tickTemporaryShieldDomes() {
+        java.util.List<UUID> expired = new java.util.ArrayList<>();
+        for (Map.Entry<UUID, PendingRemoval> entry : pendingRemovals.entrySet()) {
+            if (barriers.containsKey(entry.getKey()) && entry.getValue().expiresAtTick() <= tickCounter) {
+                expired.add(entry.getKey());
+            }
+        }
+        for (UUID id : expired) {
+            VeilBarrier barrier = barriers.remove(id);
+            if (barrier != null) {
+                absoluteBarrierCache.remove(id);
+                pendingRemovals.remove(id);
+                ServerLevel source = server.getLevel(barrier.sourceKey());
+                if (source != null) {
+                    source.playSound(null, barrier.centerX() + 0.5, barrier.centerY(), barrier.centerZ() + 0.5, SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 2.0F, 0.8F);
+                }
+            }
         }
     }
 
@@ -1949,10 +1974,10 @@ public final class VeilManager {
                 level.playSound(null, cPos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 8.0F, 1.1F);
                 level.playSound(null, cPos, SoundEvents.EVOKER_CAST_SPELL, SoundSource.HOSTILE, 6.0F, 0.8F);
             } else if (strikeType == 6) {
-                // [탄종 6: 🛡️ 궤도 드롭 방어막 포드 (Deployable Shield Pod)] - 착탄 지점에 1분간 임시 방어 돔 소환
+                // [탄종 6: 🛡️ 궤도 드롭 방어막 포드 (Deployable Shield Pod)] - 착탄 지점에 5분간 임시 방어 돔 소환
                 BlockPos podCenter = BlockPos.containing(target);
                 spawnDeployableShieldPod(level, podCenter, barrier.owner());
-                sendStrikeBeam(level, target, 600, 0xFFD700);
+                sendStrikeBeam(level, target, 6000, 0xFFD700);
                 level.playSound(null, podCenter, SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 10.0F, 1.5F);
                 level.playSound(null, podCenter, SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 5.0F, 1.2F);
             } else {
