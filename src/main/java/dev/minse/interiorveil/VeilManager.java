@@ -706,7 +706,90 @@ public final class VeilManager {
         // 3. 결계 진입 및 튕김 처리
         for (VeilBarrier barrier : barriers.values()) {
             if (!barrier.sourceKey().equals(player.level().dimension())) continue;
-            
+
+            // 🛡️ [5분 임시 방어 돔 특수 로직: 30초 동안 아군 진입 가능, 이후 완전 밀폐(나가기만 가능)]
+            if (pendingRemovals.containsKey(barrier.id())) {
+                PendingRemoval removal = pendingRemovals.get(barrier.id());
+                long createdTick = removal.expiresAtTick() - 6000;
+                long elapsedTicks = tickCounter - createdTick;
+                boolean isLockdown = elapsedTicks > 600; // 30초(600틱) 이후 완전 밀폐
+
+                double cx = barrier.centerX() + 0.5;
+                double cz = barrier.centerZ() + 0.5;
+                double prevDistSq = BarrierGeometry.horizontalDistanceSquared(player.xo, player.zo, cx, cz);
+                double currDistSq = BarrierGeometry.horizontalDistanceSquared(player.getX(), player.getZ(), cx, cz);
+                double r = barrier.radius();
+
+                // 30초 정각 밀폐 사운드 및 공지 (주변 64m)
+                if (elapsedTicks == 600 && currDistSq <= 64.0 * 64.0) {
+                    player.displayClientMessage(
+                            Component.literal("🔒 [방어 돔] 30초가 경과하여 돔이 완전 밀폐되었습니다! (이제 나가기만 가능합니다)")
+                                    .withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD),
+                            true
+                    );
+                    ServerLevel sl = (ServerLevel) player.level();
+                    sl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.IRON_DOOR_CLOSE, SoundSource.PLAYERS, 1.5F, 0.8F);
+                    sl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 1.5F, 1.8F);
+                }
+
+                // 1) 30초 이전(대피 페이즈): 아군은 자유 진입/퇴장, 적대는 차단
+                if (!isLockdown) {
+                    int remainingSec = (int) Math.max(1, (600 - elapsedTicks) / 20);
+                    if (currDistSq <= (r + 0.5) * (r + 0.5)) {
+                        if (isAttackFriendly(player, barrier)) {
+                            if (tickCounter % 20 == 0) {
+                                player.displayClientMessage(
+                                        Component.literal(String.format("🛡️ [방어 돔] 대피 모드 진행 중 (밀폐까지 %d초 남음)", remainingSec))
+                                                .withStyle(net.minecraft.ChatFormatting.GOLD),
+                                        true
+                                );
+                            }
+                            continue; // 아군은 안전하게 입장 및 체류 허용
+                        } else {
+                            // 적대 플레이어는 진입 차단 및 튕김
+                            double dx = player.getX() - cx;
+                            double dz = player.getZ() - cz;
+                            double len = Math.sqrt(dx * dx + dz * dz);
+                            if (len < 0.01) { dx = 1.0; dz = 0.0; len = 1.0; }
+                            player.setDeltaMovement((dx / len) * 1.3, 0.2, (dz / len) * 1.3);
+                            player.hurtMarked = true;
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                // 2) 30초 이후(밀폐 페이즈): "나가기만 가능, 들어오기는 누구도 절대 불가"
+                if (currDistSq <= (r + 0.8) * (r + 0.8)) {
+                    // 이전 틱에 이미 돔 내부 깊숙이(r - 0.8m) 있었고 밖으로 걸어나가는 중이라면 자유 탈출 허용!
+                    if (prevDistSq < (r - 0.8) * (r - 0.8)) {
+                        continue;
+                    }
+
+                    // 밖에서 안으로 들어가려 하거나 경계면에 접촉한 경우: 전원 밖으로 강력 튕겨냄!
+                    double dx = player.getX() - cx;
+                    double dz = player.getZ() - cz;
+                    double len = Math.sqrt(dx * dx + dz * dz);
+                    if (len < 0.01) { dx = 1.0; dz = 0.0; len = 1.0; }
+                    player.setDeltaMovement((dx / len) * 1.4, 0.2, (dz / len) * 1.4);
+                    player.hurtMarked = true;
+
+                    if (tickCounter % 20 == 0) {
+                        player.displayClientMessage(
+                                Component.literal("⛔ [방어 돔] 완전 밀폐 구역입니다. 밖에서는 진입할 수 없습니다! (내부 탈출만 가능)")
+                                        .withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD),
+                                true
+                        );
+                        ServerLevel sl = (ServerLevel) player.level();
+                        sl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1.2F, 1.3F);
+                        sl.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1.0, player.getZ(), 8, 0.3, 0.5, 0.3, 0.05);
+                    }
+                    return;
+                }
+                continue;
+            }
+
+            // 일반 신호기 결계 처리
             if (barrier.contains(player.getX(), player.getY(), player.getZ(), 0, false)) {
                 if (canEnter(player, barrier)) {
                     beginTransition(player, barrier, TransitionState.Direction.ENTER);
@@ -1943,6 +2026,17 @@ public final class VeilManager {
         barriers.put(tempId, tempBarrier);
         absoluteBarrierCache.add(tempId);
         pendingRemovals.put(tempId, new PendingRemoval(tempId, tickCounter + 6000));
+
+        // 착탄 지점 주변 플레이어에게 30초 대피 모드 안내
+        for (ServerPlayer sp : level.players()) {
+            if (sp.distanceToSqr(center.getX() + 0.5, center.getY(), center.getZ() + 0.5) <= 64.0 * 64.0) {
+                sp.displayClientMessage(
+                        Component.literal("🛡️ [전술 방어 돔 전개] 30초간 아군 대피/진입 가능! 30초 후 완전 밀폐(탈출만 가능)됩니다.")
+                                .withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD),
+                        true
+                );
+            }
+        }
     }
 
     private void tickStrikeBeams() {
