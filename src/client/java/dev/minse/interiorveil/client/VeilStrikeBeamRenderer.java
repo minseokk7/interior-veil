@@ -37,10 +37,44 @@ public final class VeilStrikeBeamRenderer {
         BEAMS.removeIf(beam -> {
             beam.ticksRemaining--;
 
-            // 착탄 초기 160틱(8초) 동안 맹렬하게 휘몰아치는 실사 거대 열폭풍 파티클 분사
+            boolean isEmp = (beam.color == 0x00E5FF);
+
+            // 착탄 초기 160틱(8초) 동안 파티클 효과
             int elapsed = beam.maxTicks - beam.ticksRemaining;
             if (level != null && elapsed < 160) {
-                // 1. 착탄 중심부 거대 분화 파티클
+                if (isEmp) {
+                    // [고고도 EMP 전용] 상공 200블럭 위에서 퍼져나가는 푸른 전기 스파크 링 파티클
+                    if (elapsed < 80) {
+                        float p = (float) elapsed / 80.0f;
+                        double empRadius = Math.pow(p, 0.6) * 180.0;
+                        double empCenterY = beam.y + 200.0;
+
+                        for (int i = 0; i < 30; i++) {
+                            double angle = Math.random() * 2.0 * Math.PI;
+                            double px = beam.x + Math.cos(angle) * empRadius;
+                            double pz = beam.z + Math.sin(angle) * empRadius;
+                            double py = empCenterY + (Math.random() - 0.5) * 8.0;
+
+                            level.addParticle(ParticleTypes.ELECTRIC_SPARK, px, py, pz, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2);
+                            if (Math.random() < 0.3) {
+                                level.addParticle(ParticleTypes.GLOW, px, py, pz, 0, 0, 0);
+                            }
+                        }
+
+                        // 지상으로 떨어지는 전자기 잔류 방전 스파크
+                        for (int i = 0; i < 8; i++) {
+                            double angle = Math.random() * 2.0 * Math.PI;
+                            double gr = Math.random() * empRadius * 0.8;
+                            double gx = beam.x + Math.cos(angle) * gr;
+                            double gz = beam.z + Math.sin(angle) * gr;
+                            double gy = beam.y + Math.random() * 4.0;
+                            level.addParticle(ParticleTypes.ELECTRIC_SPARK, gx, gy, gz, 0, 0.05, 0);
+                        }
+                    }
+                    return beam.ticksRemaining <= 0;
+                }
+
+                // 1. [고폭탄 전용] 착탄 중심부 거대 분화 파티클
                 if (elapsed < 80) {
                     for (int i = 0; i < 15; i++) {
                         double angle = Math.random() * 2.0 * Math.PI;
@@ -241,14 +275,23 @@ public final class VeilStrikeBeamRenderer {
             int g = (beam.color >> 8) & 0xFF;
             int b = beam.color & 0xFF;
 
-            // 1. 다단계 초고속 열폭풍 충격파 파동 렌더링 (착탄 초기 160틱 = 8초)
-            if (elapsed < 160) {
-                drawCascadingThermalStorm(consumer, pose, camPos, right, up, beam, elapsed, anim);
-            }
+            boolean isEmp = (beam.color == 0x00E5FF);
 
-            // 2. 실사 3D 핵폭발 버섯구름 렌더링 (착탄 후 360틱 = 18초 지속)
-            if (elapsed < 360) {
-                drawCinematicNuclearCloud(consumer, pose, camPos, right, up, beam, elapsed, anim);
+            if (isEmp) {
+                // [EMP 전용] 핵폭발/화염 버섯구름 대신, 지평선으로 퍼져나가는 순수 푸른 전자기 링 파동 렌더링
+                if (elapsed < 120) {
+                    drawEmpShockwaveRings(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                }
+            } else {
+                // [고폭탄 전용] 1. 다단계 초고속 열폭풍 충격파 파동 렌더링 (착탄 초기 160틱 = 8초)
+                if (elapsed < 160) {
+                    drawCascadingThermalStorm(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                }
+
+                // 2. 실사 3D 핵폭발 버섯구름 렌더링 (착탄 후 360틱 = 18초 지속)
+                if (elapsed < 360) {
+                    drawCinematicNuclearCloud(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                }
             }
 
             // 3. 궤도 레이저 기둥 렌더링
@@ -263,13 +306,98 @@ public final class VeilStrikeBeamRenderer {
             double endY = Math.min(320.0, startY + 256.0);
 
             // 내부 코어 빔
-            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, 0.4f, coreR, coreG, coreB, coreAlpha, anim);
+            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, isEmp ? 0.25f : 0.4f, coreR, coreG, coreB, coreAlpha, anim);
             // 외부 글로우 빔
-            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, 0.95f, r, g, b, glowAlpha, -anim * 0.7f);
+            drawVerticalBeam(consumer, pose, camPos, beam.x, beam.z, startY, endY, isEmp ? 0.65f : 0.95f, r, g, b, glowAlpha, -anim * 0.7f);
         }
 
         if (context.consumers() instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bufferSource) {
             bufferSource.endBatch(RenderType.lightning());
+        }
+    }
+
+    /**
+     * [고고도 EMP 전용] 착탄 지점 상공 200블럭 위에서 사방으로 웅장하게 퍼져나가는 순수 푸른 전자기 링 파동 렌더러.
+     */
+    private static void drawEmpShockwaveRings(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            Vec3 camPos,
+            Vector3f right,
+            Vector3f up,
+            ActiveBeam beam,
+            int elapsed,
+            float anim
+    ) {
+        double empCenterY = beam.y + 200.0;
+
+        // 1. 상공 200m 중심 고에너지 플라즈마 코어 섬광 (초기 40틱)
+        if (elapsed < 40) {
+            float coreProgress = (float) elapsed / 40.0f;
+            float coreAlpha = (1.0f - coreProgress) * 0.95f;
+            float coreSize = (float) (16.0 + coreProgress * 40.0);
+            drawSoftPuff(consumer, pose, camPos, beam.x, empCenterY, beam.z, right, up, coreSize, 180, 245, 255, (int) (255 * coreAlpha));
+            drawSoftPuff(consumer, pose, camPos, beam.x, empCenterY, beam.z, right, up, coreSize * 1.6f, 0, 200, 255, (int) (180 * coreAlpha));
+        }
+
+        // 2. [Ring 1] 메인 초음속 푸른 전자기 링 (0~75틱, 반경 0 -> 260m)
+        if (elapsed < 75) {
+            float p1 = (float) elapsed / 75.0f;
+            double r1 = Math.pow(p1, 0.62) * 260.0;
+            float a1 = (1.0f - p1) * 0.95f;
+            if (a1 > 0.01f && r1 > 1.0) {
+                int nodes = 64;
+                for (int i = 0; i < nodes; i++) {
+                    double angle = (i * 2.0 * Math.PI / nodes) + anim * 0.05;
+                    double px = beam.x + Math.cos(angle) * r1;
+                    double pz = beam.z + Math.sin(angle) * r1;
+                    double py = empCenterY + Math.sin(i * 3.0 + anim) * 1.5;
+                    float size = (float) (8.0 + p1 * 18.0);
+
+                    // 메인 네온 사이언 고리
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 235, 255, (int) (250 * a1));
+                    // 화이트 코어 하이라이트
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size * 0.45f, 220, 255, 255, (int) (255 * a1));
+                }
+            }
+        }
+
+        // 3. [Ring 2] 2차 푸른 펄스 고리 (12~90틱, 반경 0 -> 210m)
+        if (elapsed >= 12 && elapsed < 90) {
+            float p2 = (float) (elapsed - 12) / 78.0f;
+            double r2 = Math.pow(p2, 0.7) * 210.0;
+            float a2 = (1.0f - p2) * 0.85f;
+            if (a2 > 0.01f && r2 > 1.0) {
+                int nodes = 54;
+                for (int i = 0; i < nodes; i++) {
+                    double angle = (i * 2.0 * Math.PI / nodes) - anim * 0.04;
+                    double px = beam.x + Math.cos(angle) * r2;
+                    double pz = beam.z + Math.sin(angle) * r2;
+                    double py = empCenterY + Math.cos(i * 2.5 + anim) * 2.0;
+                    float size = (float) (10.0 + p2 * 20.0);
+
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 40, 160, 255, (int) (220 * a2));
+                }
+            }
+        }
+
+        // 4. [Ring 3] 3차 잔류 방전 고리 (25~110틱, 반경 0 -> 160m)
+        if (elapsed >= 25 && elapsed < 110) {
+            float p3 = (float) (elapsed - 25) / 85.0f;
+            double r3 = Math.pow(p3, 0.8) * 160.0;
+            float a3 = (1.0f - p3) * 0.75f;
+            if (a3 > 0.01f && r3 > 1.0) {
+                int nodes = 44;
+                for (int i = 0; i < nodes; i++) {
+                    double angle = (i * 2.0 * Math.PI / nodes) + anim * 0.03;
+                    double px = beam.x + Math.cos(angle) * r3;
+                    double pz = beam.z + Math.sin(angle) * r3;
+                    double py = empCenterY + Math.sin(angle * 4.0 + anim) * 2.5;
+                    float size = (float) (12.0 + p3 * 22.0);
+
+                    drawSoftPuff(consumer, pose, camPos, px, py, pz, right, up, size, 0, 110, 255, (int) (190 * a3));
+                }
+            }
         }
     }
 

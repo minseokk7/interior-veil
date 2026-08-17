@@ -1583,12 +1583,15 @@ public final class VeilManager {
                     net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, beamPayload);
                 }
 
-                // EMP 번개 굉음 및 대규모 전기 스파크 파티클
+                // EMP 번개 굉음 및 대규모 전기 스파크 파티클 (상공 200블럭 및 지상)
                 BlockPos centerPos = BlockPos.containing(target);
                 level.playSound(null, centerPos, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 10.0F, 1.2F);
                 level.playSound(null, centerPos, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.BLOCKS, 8.0F, 1.4F);
-                for (int i = 0; i < 80; i++) {
-                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK, target.x, target.y + 1, target.z, 20, 8.0, 4.0, 8.0, 0.3);
+                for (int i = 0; i < 60; i++) {
+                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK, target.x, target.y + 200, target.z, 25, 12.0, 4.0, 12.0, 0.4);
+                }
+                for (int i = 0; i < 30; i++) {
+                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK, target.x, target.y + 1, target.z, 15, 6.0, 3.0, 6.0, 0.2);
                 }
             } else if (strikeType == 2) {
                 // [탄종 2: 궤도 보급 포드 투하] - 전술 보급품 상자 낙하
