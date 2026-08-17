@@ -34,7 +34,13 @@ public final class VeilTacticalHudRenderer {
         if (client.player == null || client.options.hideGui) return;
 
         int screenWidth = client.getWindow().getGuiScaledWidth();
+        int screenHeight = client.getWindow().getGuiScaledHeight();
         int currentY = 12;
+
+        // 0. 타겟팅 레이저 조준경 (Spyglass Scope) 전술 오버레이
+        if (client.player.isUsingItem() && client.player.getUseItem().is(dev.minse.interiorveil.VeilItems.TARGETING_LASER)) {
+            renderTargetingScopeOverlay(graphics, client, screenWidth, screenHeight);
+        }
 
         // 1. 전투 피해 분석 (BDA) 리포트 HUD 카드 (5초간 표시)
         long now = System.currentTimeMillis();
@@ -115,5 +121,55 @@ public final class VeilTacticalHudRenderer {
             float progress = Math.max(0.0f, Math.min(1.0f, remSec / 120.0f));
             graphics.fill(barX, barY, barX + (int) (barWidth * progress), barY + 2, 0xFFFF2244);
         }
+    }
+
+    private static void renderTargetingScopeOverlay(GuiGraphics graphics, Minecraft client, int width, int height) {
+        int centerX = width / 2;
+        int centerY = height / 2;
+        int useTicks = 72000 - client.player.getUseItemRemainingTicks();
+        int lockOnTicks = 20;
+        float progress = Math.min(1.0f, (float) useTicks / lockOnTicks);
+        boolean isLocked = useTicks >= lockOnTicks;
+
+        int colorTheme = isLocked ? 0xFFFF3344 : 0xFF00E5FF;
+
+        // 1. 조준 십자선 (Crosshair lines)
+        int crosshairSize = 28;
+        int gap = 8;
+        // 좌/우
+        graphics.fill(centerX - crosshairSize, centerY, centerX - gap, centerY + 1, colorTheme);
+        graphics.fill(centerX + gap, centerY, centerX + crosshairSize, centerY + 1, colorTheme);
+        // 상/하
+        graphics.fill(centerX, centerY - crosshairSize, centerX + 1, centerY - gap, colorTheme);
+        graphics.fill(centerX, centerY + gap, centerX + 1, centerY + crosshairSize, colorTheme);
+
+        // 2. 외곽 브래킷 (Targeting Brackets)
+        int bracketDist = 36;
+        int bracketLen = 10;
+        // 좌상단
+        graphics.fill(centerX - bracketDist, centerY - bracketDist, centerX - bracketDist + bracketLen, centerY - bracketDist + 1, colorTheme);
+        graphics.fill(centerX - bracketDist, centerY - bracketDist, centerX - bracketDist + 1, centerY - bracketDist + bracketLen, colorTheme);
+        // 우상단
+        graphics.fill(centerX + bracketDist - bracketLen, centerY - bracketDist, centerX + bracketDist, centerY - bracketDist + 1, colorTheme);
+        graphics.fill(centerX + bracketDist, centerY - bracketDist, centerX + bracketDist + 1, centerY - bracketDist + bracketLen, colorTheme);
+        // 좌하단
+        graphics.fill(centerX - bracketDist, centerY + bracketDist, centerX - bracketDist + bracketLen, centerY + bracketDist + 1, colorTheme);
+        graphics.fill(centerX - bracketDist, centerY + bracketDist - bracketLen, centerX - bracketDist + 1, centerY + bracketDist, colorTheme);
+        // 우하단
+        graphics.fill(centerX + bracketDist - bracketLen, centerY + bracketDist, centerX + bracketDist, centerY + bracketDist + 1, colorTheme);
+        graphics.fill(centerX + bracketDist, centerY + bracketDist - bracketLen, centerX + bracketDist + 1, centerY + bracketDist, colorTheme);
+
+        // 3. 충전 게이지 바 (하단)
+        int barW = 80;
+        int barH = 4;
+        int barX = centerX - barW / 2;
+        int barY = centerY + 46;
+        graphics.fill(barX - 1, barY - 1, barX + barW + 1, barY + barH + 1, 0x88000000);
+        graphics.fill(barX, barY, barX + (int) (barW * progress), barY + barH, isLocked ? 0xFFFF2244 : 0xFF00FFCC);
+
+        // 4. 중앙 상태 레이블
+        String statusText = isLocked ? "§c🎯 [LOCK ON - RELEASE TO FIRE]" : String.format("§b🔭 ACQUIRING... %d%%", (int) (progress * 100));
+        int textW = client.font.width(statusText);
+        graphics.drawString(client.font, statusText, centerX - textW / 2, centerY - 48, 0xFFFFFFFF, true);
     }
 }
