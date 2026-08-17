@@ -53,7 +53,9 @@ public final class VeilTargetMapScreen extends Screen {
     }
 
     private int strikeType = 0; // 0: 고폭, 1: EMP, 2: 보급
+    private dev.minse.interiorveil.StrikeFormation strikeFormation = dev.minse.interiorveil.StrikeFormation.SINGLE;
     private Button typeButton;
+    private Button formationButton;
 
     private String getTypeButtonText() {
         return switch (strikeType) {
@@ -61,6 +63,10 @@ public final class VeilTargetMapScreen extends Screen {
             case 2 -> "§a📦 보급포드";
             default -> "§c💥 고폭탄";
         };
+    }
+
+    private String getFormationButtonText() {
+        return "§e" + strikeFormation.getDisplayName();
     }
 
     @Override
@@ -73,14 +79,19 @@ public final class VeilTargetMapScreen extends Screen {
         typeButton = addRenderableWidget(Button.builder(Component.literal(getTypeButtonText()), btn -> {
             strikeType = (strikeType + 1) % 3;
             btn.setMessage(Component.literal(getTypeButtonText()));
-        }).bounds(this.width / 2 - 200, buttonY, 90, 20).build());
+        }).bounds(this.width / 2 - 215, buttonY, 75, 20).build());
+
+        formationButton = addRenderableWidget(Button.builder(Component.literal(getFormationButtonText()), btn -> {
+            strikeFormation = dev.minse.interiorveil.StrikeFormation.byIndex((strikeFormation.ordinal() + 1) % dev.minse.interiorveil.StrikeFormation.values().length);
+            btn.setMessage(Component.literal(getFormationButtonText()));
+        }).bounds(this.width / 2 - 135, buttonY, 100, 20).build());
 
         addRenderableWidget(Button.builder(Component.translatable("screen.interiorveil.target_map.save"), button -> save(false))
-                .bounds(this.width / 2 - 105, buttonY, 70, 20).build());
+                .bounds(this.width / 2 - 30, buttonY, 50, 20).build());
         fireButton = addRenderableWidget(Button.builder(Component.translatable("screen.interiorveil.target_map.fire"), button -> save(true))
-                .bounds(this.width / 2 - 30, buttonY, 70, 20).build());
+                .bounds(this.width / 2 + 25, buttonY, 60, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose())
-                .bounds(this.width / 2 + 45, buttonY, 65, 20).build());
+                .bounds(this.width / 2 + 90, buttonY, 50, 20).build());
     }
 
     @Override
@@ -109,6 +120,13 @@ public final class VeilTargetMapScreen extends Screen {
             strikeType = (strikeType + 1) % 3;
             if (typeButton != null) {
                 typeButton.setMessage(Component.literal(getTypeButtonText()));
+            }
+            return true;
+        }
+        if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_F) {
+            strikeFormation = dev.minse.interiorveil.StrikeFormation.byIndex((strikeFormation.ordinal() + 1) % dev.minse.interiorveil.StrikeFormation.values().length);
+            if (formationButton != null) {
+                formationButton.setMessage(Component.literal(getFormationButtonText()));
             }
             return true;
         }
@@ -162,7 +180,7 @@ public final class VeilTargetMapScreen extends Screen {
             int radius = (current != null) ? current.strikeRadius() : 20;
             VeilStrikeTargetTracker.recordStrike(map.barrierId(), selectedX, selectedY, selectedZ, radius);
             ClientPlayNetworking.send(new VeilAdminActionPayload(
-                    map.barrierId(), "laser_fire", selectedX + "," + selectedY + "," + selectedZ + "," + radius + "," + strikeType
+                    map.barrierId(), "laser_fire", selectedX + "," + selectedY + "," + selectedZ + "," + radius + "," + strikeType + "," + strikeFormation.ordinal()
             ));
         }
         onClose();
@@ -228,7 +246,7 @@ public final class VeilTargetMapScreen extends Screen {
         int radiusPixels = (int) (veilRadius * renderCellPixel / map.cellSize());
         drawCircle(graphics, centerPixelX, centerPixelZ, radiusPixels, 0xAA33FFFF);
 
-        // 타겟 마커 검사 (2분 만료 시스템 연동)
+        // 타겟 마커 검사 (2분 만료 시스템 및 7종 진형 다중 마커 연동)
         VeilStrikeTargetTracker.TargetEntry activeEntry = VeilStrikeTargetTracker.getActiveTarget(map.barrierId());
         int targetXToDraw = activeEntry != null ? activeEntry.targetX() : selectedX;
         int targetZToDraw = activeEntry != null ? activeEntry.targetZ() : selectedZ;
@@ -236,22 +254,45 @@ public final class VeilTargetMapScreen extends Screen {
 
         if (shouldDrawTarget) {
             int halfRange = map.resolution() * map.cellSize() / 2;
-            double targetMapX = (targetXToDraw - (map.centerX() - halfRange)) / (double) map.cellSize();
-            double targetMapZ = (targetZToDraw - (map.centerZ() - halfRange)) / (double) map.cellSize();
-            int targetPixelX = (int) (renderOriginX + targetMapX * renderCellPixel);
-            int targetPixelZ = (int) (renderOriginZ + targetMapZ * renderCellPixel);
-
             int alpha = activeEntry != null ? (int) (activeEntry.getFadeAlpha() * 255) : 255;
-            int strikeMarkerColor = (Math.max(40, alpha) << 24) | 0xFF2222;
-
-            // 붉은 조준 십자선
-            graphics.fill(targetPixelX - 6, targetPixelZ, targetPixelX + 7, targetPixelZ + 1, strikeMarkerColor);
-            graphics.fill(targetPixelX, targetPixelZ - 6, targetPixelX + 1, targetPixelZ + 7, strikeMarkerColor);
-
-            // 폭격 예상 반경 원형 링
             int strikeRadius = activeEntry != null ? activeEntry.strikeRadius() : (current != null ? current.strikeRadius() : 20);
             int strikeRadiusPixels = (int) (strikeRadius * renderCellPixel / map.cellSize());
-            drawCircle(graphics, targetPixelX, targetPixelZ, strikeRadiusPixels, (Math.max(30, alpha / 2) << 24) | 0xFF3333);
+
+            int markerColorRgb = switch (strikeType) {
+                case 1 -> 0x00E5FF; // EMP (Cyan)
+                case 2 -> 0x55FF55; // Supply (Green)
+                default -> 0xFF2222; // HE (Red)
+            };
+            int primaryMarkerColor = (Math.max(50, alpha) << 24) | markerColorRgb;
+            int subMarkerColor = (Math.max(35, alpha * 2 / 3) << 24) | markerColorRgb;
+            int circleColor = (Math.max(25, alpha / 3) << 24) | markerColorRgb;
+
+            // 선택된 진형의 오프셋 목록 가져오기 (기본 간격: 폭격 반경 * 1.5)
+            int spacing = (int) (strikeRadius * 1.5);
+            java.util.List<int[]> offsets = strikeFormation.getOffsets(spacing);
+
+            for (int i = 0; i < offsets.size(); i++) {
+                int[] offset = offsets.get(i);
+                int ptX = targetXToDraw + offset[0];
+                int ptZ = targetZToDraw + offset[1];
+
+                double targetMapX = (ptX - (map.centerX() - halfRange)) / (double) map.cellSize();
+                double targetMapZ = (ptZ - (map.centerZ() - halfRange)) / (double) map.cellSize();
+                int px = (int) (renderOriginX + targetMapX * renderCellPixel);
+                int pz = (int) (renderOriginZ + targetMapZ * renderCellPixel);
+
+                if (i == 0) {
+                    // 중심점: 메인 굵은 조준 십자선 & 폭격 예상 반경 원형 링
+                    graphics.fill(px - 6, pz, px + 7, pz + 1, primaryMarkerColor);
+                    graphics.fill(px, pz - 6, px + 1, pz + 7, primaryMarkerColor);
+                    drawCircle(graphics, px, pz, strikeRadiusPixels, circleColor);
+                } else {
+                    // 보조 타격점: 서브 조준 십자선 & 반경 원
+                    graphics.fill(px - 3, pz, px + 4, pz + 1, subMarkerColor);
+                    graphics.fill(px, pz - 3, px + 1, pz + 4, subMarkerColor);
+                    drawCircle(graphics, px, pz, (int) (strikeRadiusPixels * 0.75), circleColor);
+                }
+            }
         }
 
         graphics.disableScissor();

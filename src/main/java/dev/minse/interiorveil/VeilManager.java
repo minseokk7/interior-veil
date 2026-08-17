@@ -1368,6 +1368,7 @@ public final class VeilManager {
         int y;
         int z;
         int strikeType = 0; // 0: HE_THERMAL, 1: EMP_PULSE, 2: SUPPLY_POD
+        int formationIndex = 0; // 0: SINGLE, 1: CROSS_5, 2: GRID_9, 3: CIRCLE_9, 4: X_CROSS_5, 5: LINE_5, 6: DIAMOND_9
         try {
             x = Integer.parseInt(parts[0]);
             y = Integer.parseInt(parts[1]);
@@ -1376,6 +1377,9 @@ public final class VeilManager {
                 int radius = Integer.parseInt(parts[3]);
                 if (parts.length >= 5) {
                     strikeType = Integer.parseInt(parts[4]);
+                }
+                if (parts.length >= 6) {
+                    formationIndex = Integer.parseInt(parts[5]);
                 }
                 barriers.put(barrier.id(), barrier.withSettings(
                         barrier.name(), barrier.radius(), barrier.height(), barrier.fogMargin(),
@@ -1403,8 +1407,8 @@ public final class VeilManager {
             return;
         }
         Vec3 origin = Vec3.atCenterOf(barrier.center()).add(0.0, 1.0, 0.0);
-        Vec3 target = new Vec3(x + 0.5, y + 0.5, z + 0.5);
-        double distance = origin.distanceTo(target);
+        Vec3 mainTarget = new Vec3(x + 0.5, y + 0.5, z + 0.5);
+        double distance = origin.distanceTo(mainTarget);
         if (distance > 1024.0 || distance < 1.0 || y < source.getMinY() || y >= source.getMaxY()) {
             player.displayClientMessage(Component.translatable("message.interiorveil.laser_range"), true);
             return;
@@ -1418,11 +1422,30 @@ public final class VeilManager {
             return;
         }
 
+        StrikeFormation formation = StrikeFormation.byIndex(formationIndex);
+        int spacing = Math.max(14, (int) (barrier.advanced().strikeRadius() * 1.5));
+        java.util.List<int[]> offsets = formation.getOffsets(spacing);
+
         String typeLabel = strikeType == 1 ? "⚡ EMP 펄스" : (strikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍");
-        player.displayClientMessage(Component.literal(String.format("🛰️ 궤도 폭격 발사 승인: [%s] [X: %d, Y: %d, Z: %d] (R: %dm)", typeLabel, x, y, z, barrier.advanced().strikeRadius())), true);
-        
-        // 5초(100틱) 후 폭격 예약 (화면 카운트다운 표시)
-        pendingStrikes.add(new PendingStrike(source.dimension(), origin, target, barrier.id(), tickCounter + 100, strikeType));
+        String formLabel = formation.getDisplayName();
+        player.displayClientMessage(
+                Component.literal(String.format("🛰️ 궤도 폭격 발사 승인: [%s | %s] [X: %d, Y: %d, Z: %d] (총 %d발 연쇄 투하)",
+                        typeLabel, formLabel, x, y, z, offsets.size())),
+                true
+        );
+
+        // 5초(100틱) 후 폭격 예약 (각 타격 지점마다 3틱 시차를 두어 웅장한 연쇄 폭격 실행)
+        for (int i = 0; i < offsets.size(); i++) {
+            int[] off = offsets.get(i);
+            int tx = x + off[0];
+            int tz = z + off[1];
+            int ty = source.getHeight(Heightmap.Types.MOTION_BLOCKING, tx, tz);
+            if (ty <= source.getMinY()) ty = y;
+
+            Vec3 subTarget = new Vec3(tx + 0.5, ty + 0.5, tz + 0.5);
+            int executeTick = tickCounter + 100 + (i * 3);
+            pendingStrikes.add(new PendingStrike(source.dimension(), origin, subTarget, barrier.id(), executeTick, strikeType));
+        }
 
         // 발사 즉시 첫 번째 '5' 카운트다운 타이틀 전송
         net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket initAnim =
@@ -1433,10 +1456,10 @@ public final class VeilManager {
                 );
         net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket initSubtitle =
                 new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
-                        Component.literal("⚠ 폭격 카운트다운 ⚠").withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD)
+                        Component.literal("⚠ " + formation.getDisplayName() + " 카운트다운 ⚠").withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD)
                 );
         for (ServerPlayer p : source.players()) {
-            double distSq = BarrierGeometry.horizontalDistanceSquared(p.getX(), p.getZ(), target.x, target.z);
+            double distSq = BarrierGeometry.horizontalDistanceSquared(p.getX(), p.getZ(), mainTarget.x, mainTarget.z);
             if (distSq <= 256.0 * 256.0 || holdsKeyFor(p, barrier)) {
                 p.connection.send(initAnim);
                 p.connection.send(initSubtitle);
@@ -2334,5 +2357,71 @@ public final class VeilManager {
             }
         }
         return null;
+    }
+
+    public void fireStrikeFromCommand(ServerPlayer player, int x, int y, int z, int strikeType) {
+        fireStrikeFromCommand(player, x, y, z, strikeType, StrikeFormation.SINGLE);
+    }
+
+    public void fireStrikeFromCommand(ServerPlayer player, int x, int y, int z, int strikeType, StrikeFormation formation) {
+        if (player == null || formation == null) return;
+        ServerLevel source = player.serverLevel();
+        VeilBarrier barrier = assignedBarrier(player).orElse(null);
+        if (barrier == null) {
+            for (VeilBarrier b : barriers.values()) {
+                if (holdsKeyFor(player, b) || player.getUUID().equals(b.owner())) {
+                    barrier = b;
+                    break;
+                }
+            }
+        }
+        UUID barrierId = (barrier != null) ? barrier.id() : new UUID(0L, 0L);
+        Vec3 origin = (barrier != null) ? Vec3.atCenterOf(barrier.center()).add(0.0, 1.0, 0.0) : player.position().add(0, 50, 0);
+
+        int spacing = 28;
+        if (barrier != null) {
+            spacing = Math.max(14, (int) (barrier.advanced().strikeRadius() * 1.5));
+        }
+        java.util.List<int[]> offsets = formation.getOffsets(spacing);
+
+        String typeLabel = strikeType == 1 ? "⚡ EMP 펄스" : (strikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍");
+        player.displayClientMessage(
+                Component.literal(String.format("🛰️ 궤도 폭격 발사 승인: [%s | %s] [X: %d, Y: %d, Z: %d] (총 %d발 연쇄 투하)",
+                        typeLabel, formation.getDisplayName(), x, y, z, offsets.size())),
+                true
+        );
+
+        for (int i = 0; i < offsets.size(); i++) {
+            int[] off = offsets.get(i);
+            int tx = x + off[0];
+            int tz = z + off[1];
+            int ty = source.getHeight(Heightmap.Types.MOTION_BLOCKING, tx, tz);
+            if (ty <= source.getMinY()) ty = y;
+
+            Vec3 subTarget = new Vec3(tx + 0.5, ty + 0.5, tz + 0.5);
+            int executeTick = tickCounter + 100 + (i * 3);
+            pendingStrikes.add(new PendingStrike(source.dimension(), origin, subTarget, barrierId, executeTick, strikeType));
+        }
+
+        // 카운트다운 타이틀 전송
+        net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket initAnim =
+                new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(0, 20, 5);
+        net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket initTitle =
+                new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                        Component.literal("5").withStyle(net.minecraft.ChatFormatting.RED, net.minecraft.ChatFormatting.BOLD)
+                );
+        net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket initSubtitle =
+                new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
+                        Component.literal("⚠ " + formation.getDisplayName() + " 카운트다운 ⚠").withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD)
+                );
+        for (ServerPlayer p : source.players()) {
+            double distSq = BarrierGeometry.horizontalDistanceSquared(p.getX(), p.getZ(), x + 0.5, z + 0.5);
+            if (distSq <= 256.0 * 256.0 || (barrier != null && holdsKeyFor(p, barrier))) {
+                p.connection.send(initAnim);
+                p.connection.send(initSubtitle);
+                p.connection.send(initTitle);
+                p.playNotifySound(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), net.minecraft.sounds.SoundSource.PLAYERS, 1.2F, 1.0F);
+            }
+        }
     }
 }

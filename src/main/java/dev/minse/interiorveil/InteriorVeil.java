@@ -87,11 +87,25 @@ public final class InteriorVeil implements ModInitializer {
                                                         if (manager != null) {
                                                             net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
                                                             int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
-                                                            manager.fireStrikeFromCommand(player, x, y, z, 1);
+                                                            manager.fireStrikeFromCommand(player, x, y, z, 1, StrikeFormation.SINGLE);
                                                             return 1;
                                                         }
                                                         return 0;
-                                                    }))))
+                                                    })
+                                                    .then(net.minecraft.commands.Commands.argument("formation", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                            .executes(context -> {
+                                                                if (!(context.getSource().getEntity() instanceof ServerPlayer player)) return 0;
+                                                                int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "x");
+                                                                int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
+                                                                String formStr = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "formation");
+                                                                if (manager != null) {
+                                                                    net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
+                                                                    int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+                                                                    manager.fireStrikeFromCommand(player, x, y, z, 1, StrikeFormation.byName(formStr));
+                                                                    return 1;
+                                                                }
+                                                                return 0;
+                                                            })))))
                             .then(net.minecraft.commands.Commands.literal("supply")
                                     .then(net.minecraft.commands.Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                             .then(net.minecraft.commands.Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
@@ -102,11 +116,25 @@ public final class InteriorVeil implements ModInitializer {
                                                         if (manager != null) {
                                                             net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
                                                             int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
-                                                            manager.fireStrikeFromCommand(player, x, y, z, 2);
+                                                            manager.fireStrikeFromCommand(player, x, y, z, 2, StrikeFormation.SINGLE);
                                                             return 1;
                                                         }
                                                         return 0;
-                                                    }))))
+                                                    })
+                                                    .then(net.minecraft.commands.Commands.argument("formation", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                            .executes(context -> {
+                                                                if (!(context.getSource().getEntity() instanceof ServerPlayer player)) return 0;
+                                                                int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "x");
+                                                                int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
+                                                                String formStr = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "formation");
+                                                                if (manager != null) {
+                                                                    net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
+                                                                    int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+                                                                    manager.fireStrikeFromCommand(player, x, y, z, 2, StrikeFormation.byName(formStr));
+                                                                    return 1;
+                                                                }
+                                                                return 0;
+                                                            })))))
                             .then(net.minecraft.commands.Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                     .then(net.minecraft.commands.Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                             .executes(context -> {
@@ -118,11 +146,25 @@ public final class InteriorVeil implements ModInitializer {
                                                 if (manager != null) {
                                                     net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
                                                     int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
-                                                    manager.fireStrikeFromCommand(player, x, y, z, 0);
+                                                    manager.fireStrikeFromCommand(player, x, y, z, 0, StrikeFormation.SINGLE);
                                                     return 1;
                                                 }
                                                 return 0;
                                             })
+                                            .then(net.minecraft.commands.Commands.argument("formation", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                    .executes(context -> {
+                                                        if (!(context.getSource().getEntity() instanceof ServerPlayer player)) return 0;
+                                                        int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "x");
+                                                        int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
+                                                        String formStr = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "formation");
+                                                        if (manager != null) {
+                                                            net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
+                                                            int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+                                                            manager.fireStrikeFromCommand(player, x, y, z, 0, StrikeFormation.byName(formStr));
+                                                            return 1;
+                                                        }
+                                                        return 0;
+                                                    }))
                                             .then(net.minecraft.commands.Commands.argument("y", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                                     .executes(context -> {
                                                         if (!(context.getSource().getEntity() instanceof ServerPlayer player)) {
@@ -132,7 +174,7 @@ public final class InteriorVeil implements ModInitializer {
                                                         int y = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "y");
                                                         int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
                                                         if (manager != null) {
-                                                            manager.fireStrikeFromCommand(player, x, y, z, 0);
+                                                            manager.fireStrikeFromCommand(player, x, y, z, 0, StrikeFormation.SINGLE);
                                                             return 1;
                                                         }
                                                         return 0;
@@ -147,11 +189,26 @@ public final class InteriorVeil implements ModInitializer {
                                                                 int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
                                                                 int type = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "type");
                                                                 if (manager != null) {
-                                                                    manager.fireStrikeFromCommand(player, x, y, z, type);
+                                                                    manager.fireStrikeFromCommand(player, x, y, z, type, StrikeFormation.SINGLE);
                                                                     return 1;
                                                                 }
                                                                 return 0;
                                                             })
+                                                            .then(net.minecraft.commands.Commands.argument("formation", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                                    .executes(context -> {
+                                                                        if (!(context.getSource().getEntity() instanceof ServerPlayer player)) return 0;
+                                                                        int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "x");
+                                                                        int y = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "y");
+                                                                        int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
+                                                                        int type = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "type");
+                                                                        String formStr = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "formation");
+                                                                        if (manager != null) {
+                                                                            manager.fireStrikeFromCommand(player, x, y, z, type, StrikeFormation.byName(formStr));
+                                                                            return 1;
+                                                                        }
+                                                                        return 0;
+                                                                    })
+                                                            )
                                                     )
                                             )
                                     )

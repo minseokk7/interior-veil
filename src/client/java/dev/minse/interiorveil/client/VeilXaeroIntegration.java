@@ -26,6 +26,7 @@ public final class VeilXaeroIntegration {
     }
 
     private static int selectedStrikeType = 0; // 0: 고폭탄, 1: EMP탄, 2: 보급포드
+    private static dev.minse.interiorveil.StrikeFormation selectedFormation = dev.minse.interiorveil.StrikeFormation.SINGLE;
 
     private static String getStrikeTypeButtonText() {
         return switch (selectedStrikeType) {
@@ -33,6 +34,10 @@ public final class VeilXaeroIntegration {
             case 2 -> "§a📦 보급포드";
             default -> "§c💥 고폭탄";
         };
+    }
+
+    private static String getFormationButtonText() {
+        return "§e" + selectedFormation.getDisplayName();
     }
 
     public static void initialize() {
@@ -58,8 +63,21 @@ public final class VeilXaeroIntegration {
                                 client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + label + "§7 선택됨"), true);
                             }
                         }
-                ).bounds(scaledWidth - 215, 6, 95, 20).build();
+                ).bounds(scaledWidth - 325, 6, 95, 20).build();
                 Screens.getButtons(screen).add(typeButton);
+
+                // 진형 선택 토글 버튼 (클릭 시 단일 -> 십자 -> 3x3 격자 -> 원형 -> X자 -> 선형 -> 다이아몬드 순환)
+                Button formationButton = Button.builder(
+                        Component.literal(getFormationButtonText()),
+                        btn -> {
+                            selectedFormation = dev.minse.interiorveil.StrikeFormation.byIndex((selectedFormation.ordinal() + 1) % dev.minse.interiorveil.StrikeFormation.values().length);
+                            btn.setMessage(Component.literal(getFormationButtonText()));
+                            if (client.player != null) {
+                                client.player.displayClientMessage(Component.literal("§6[진형 변경] §e" + selectedFormation.getDisplayName() + "§7 선택됨"), true);
+                            }
+                        }
+                ).bounds(scaledWidth - 225, 6, 105, 20).build();
+                Screens.getButtons(screen).add(formationButton);
 
                 // Xaero 지도 화면 우측 상단에 [🚀 궤도 폭격] 버튼 주입
                 Screens.getButtons(screen).add(Button.builder(
@@ -91,6 +109,16 @@ public final class VeilXaeroIntegration {
                         if (client.player != null) {
                             String label = selectedStrikeType == 1 ? "⚡ EMP 전자기 펄스탄" : (selectedStrikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍탄");
                             client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + label + "§7 선택됨"), true);
+                        }
+                        return false;
+                    }
+
+                    // F 키를 누르면 지도 화면에서 즉시 진형 빠른 순환 전환!
+                    if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_F) {
+                        selectedFormation = dev.minse.interiorveil.StrikeFormation.byIndex((selectedFormation.ordinal() + 1) % dev.minse.interiorveil.StrikeFormation.values().length);
+                        formationButton.setMessage(Component.literal(getFormationButtonText()));
+                        if (client.player != null) {
+                            client.player.displayClientMessage(Component.literal("§6[진형 변경] §e" + selectedFormation.getDisplayName() + "§7 선택됨"), true);
                         }
                         return false;
                     }
@@ -174,9 +202,9 @@ public final class VeilXaeroIntegration {
         // 2분 만료 카운트다운 시작 (FIRED 상태 전환)
         VeilStrikeTargetTracker.recordStrike(barrierId, targetX, targetY, targetZ, strikeRadius);
 
-        // 2. 서버로 궤도 폭격 발사 패킷 전송 (탄종 포함)
+        // 2. 서버로 궤도 폭격 발사 패킷 전송 (탄종 및 진형 포함)
         ClientPlayNetworking.send(new VeilAdminActionPayload(
-                barrierId, "laser_fire", targetX + "," + targetY + "," + targetZ + "," + strikeRadius + "," + selectedStrikeType
+                barrierId, "laser_fire", targetX + "," + targetY + "," + targetZ + "," + strikeRadius + "," + selectedStrikeType + "," + selectedFormation.ordinal()
         ));
 
         // 3. 발사 사운드 및 클라이언트 알림
