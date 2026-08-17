@@ -65,7 +65,7 @@ public class VeilForcefieldRenderer {
         if (radius <= 0) radius = 1.0;
 
         long time = System.currentTimeMillis();
-        float baseWave = (float) (Math.sin(time * 0.002) * 0.1 + 0.9);
+        float baseWave = (float) (Math.sin(time * 0.0008) * 0.08 + 0.92);
 
         for (int latNumber = 0; latNumber < latitudeBands; latNumber++) {
             float theta1 = (float) (latNumber * Math.PI / latitudeBands);
@@ -76,9 +76,9 @@ public class VeilForcefieldRenderer {
             float sinTheta2 = (float) Math.sin(theta2);
             float cosTheta2 = (float) Math.cos(theta2);
 
-            // 아래에서 위로 흐르는 에너지 스캔 펄스 파동
-            float wave = (float) Math.sin(time * 0.004 - theta1 * 6.0) * 0.3f + 0.7f;
-            int currentAlpha = Math.max(15, Math.min(255, (int) (a * baseWave * wave)));
+            // 아주 느긋하고 우아하게 위로 흐르는 네온 에너지 펄스 파동
+            float wave = (float) Math.sin(time * 0.001 - theta1 * 2.5) * 0.15f + 0.85f;
+            int currentAlpha = Math.max(12, Math.min(255, (int) (a * baseWave * wave)));
 
             for (int longNumber = 0; longNumber < longitudeBands; longNumber++) {
                 // 육각형 / 지오데식(Geodesic) 엇갈림 오프셋

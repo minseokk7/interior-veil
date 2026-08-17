@@ -25,6 +25,16 @@ public final class VeilXaeroIntegration {
     private VeilXaeroIntegration() {
     }
 
+    private static int selectedStrikeType = 0; // 0: 고폭탄, 1: EMP탄, 2: 보급포드
+
+    private static String getStrikeTypeButtonText() {
+        return switch (selectedStrikeType) {
+            case 1 -> "§b⚡ EMP탄";
+            case 2 -> "§a📦 보급포드";
+            default -> "§c💥 고폭탄";
+        };
+    }
+
     public static void initialize() {
         if (registered) return;
         registered = true;
@@ -37,13 +47,27 @@ public final class VeilXaeroIntegration {
                         ? VeilKeyBindings.ORBITAL_STRIKE.getTranslatedKeyMessage().getString()
                         : "V";
 
+                // 탄종 선택 토글 버튼 (클릭 시 고폭탄 -> EMP탄 -> 보급포드 순환)
+                Button typeButton = Button.builder(
+                        Component.literal(getStrikeTypeButtonText()),
+                        btn -> {
+                            selectedStrikeType = (selectedStrikeType + 1) % 3;
+                            btn.setMessage(Component.literal(getStrikeTypeButtonText()));
+                            if (client.player != null) {
+                                String label = selectedStrikeType == 1 ? "⚡ EMP 전자기 펄스탄" : (selectedStrikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍탄");
+                                client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + label + "§7 선택됨"), true);
+                            }
+                        }
+                ).bounds(scaledWidth - 215, 6, 95, 20).build();
+                Screens.getButtons(screen).add(typeButton);
+
                 // Xaero 지도 화면 우측 상단에 [🚀 궤도 폭격] 버튼 주입
                 Screens.getButtons(screen).add(Button.builder(
                         Component.literal(String.format("§c🚀 궤도 폭격 (%s)", strikeKeyName)),
                         button -> fireStrikeAtXaeroCursor(screen, true)
-                ).bounds(scaledWidth - 110, 6, 100, 20).build());
+                ).bounds(scaledWidth - 115, 6, 105, 20).build());
 
-                // Xaero 지도 화면에서 좌클릭 시 목표 지점 조준 핀 고정 (마우스 커서를 다른 데 둬도 이 좌표로 고정 폭격)
+                // Xaero 지도 화면에서 좌클릭 시 목표 지점 조준 핀 고정
                 net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.afterMouseClick(screen).register((scr, event, doubleClick) -> {
                     if (event.button() == 0) {
                         pinTargetAtXaeroCursor(scr);
@@ -58,6 +82,17 @@ public final class VeilXaeroIntegration {
                         isStrikeKey = true;
                     } else if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_V) {
                         isStrikeKey = true;
+                    }
+
+                    // B 키를 누르면 지도 화면에서 즉시 탄종 빠른 순환 전환!
+                    if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_B) {
+                        selectedStrikeType = (selectedStrikeType + 1) % 3;
+                        typeButton.setMessage(Component.literal(getStrikeTypeButtonText()));
+                        if (client.player != null) {
+                            String label = selectedStrikeType == 1 ? "⚡ EMP 전자기 펄스탄" : (selectedStrikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍탄");
+                            client.player.displayClientMessage(Component.literal("§6[탄종 변경] §f" + label + "§7 선택됨"), true);
+                        }
+                        return false;
                     }
 
                     if (isStrikeKey) {
@@ -139,9 +174,9 @@ public final class VeilXaeroIntegration {
         // 2분 만료 카운트다운 시작 (FIRED 상태 전환)
         VeilStrikeTargetTracker.recordStrike(barrierId, targetX, targetY, targetZ, strikeRadius);
 
-        // 2. 서버로 궤도 폭격 발사 패킷 전송
+        // 2. 서버로 궤도 폭격 발사 패킷 전송 (탄종 포함)
         ClientPlayNetworking.send(new VeilAdminActionPayload(
-                barrierId, "laser_fire", targetX + "," + targetY + "," + targetZ + "," + strikeRadius
+                barrierId, "laser_fire", targetX + "," + targetY + "," + targetZ + "," + strikeRadius + "," + selectedStrikeType
         ));
 
         // 3. 발사 사운드 및 클라이언트 알림
@@ -152,8 +187,9 @@ public final class VeilXaeroIntegration {
             );
         }
 
+        String typeLabel = selectedStrikeType == 1 ? "⚡ EMP 펄스" : (selectedStrikeType == 2 ? "📦 궤도 보급 포드" : "💥 고폭 열폭풍");
         client.player.displayClientMessage(
-                Component.literal(String.format("§c💥 조준 목표 [X: %d, Y: %d, Z: %d]으로 궤도 폭격 발사!", targetX, targetY, targetZ)),
+                Component.literal(String.format("§c🛰️ [%s] 목표 [X: %d, Y: %d, Z: %d]으로 발사 승인!", typeLabel, targetX, targetY, targetZ)),
                 true
         );
     }

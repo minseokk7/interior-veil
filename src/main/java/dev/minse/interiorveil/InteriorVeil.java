@@ -77,6 +77,36 @@ public final class InteriorVeil implements ModInitializer {
                                 return 0;
                             }))
                     .then(net.minecraft.commands.Commands.literal("strike")
+                            .then(net.minecraft.commands.Commands.literal("emp")
+                                    .then(net.minecraft.commands.Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                            .then(net.minecraft.commands.Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                    .executes(context -> {
+                                                        if (!(context.getSource().getEntity() instanceof ServerPlayer player)) return 0;
+                                                        int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "x");
+                                                        int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
+                                                        if (manager != null) {
+                                                            net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
+                                                            int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+                                                            manager.fireStrikeFromCommand(player, x, y, z, 1);
+                                                            return 1;
+                                                        }
+                                                        return 0;
+                                                    }))))
+                            .then(net.minecraft.commands.Commands.literal("supply")
+                                    .then(net.minecraft.commands.Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                            .then(net.minecraft.commands.Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
+                                                    .executes(context -> {
+                                                        if (!(context.getSource().getEntity() instanceof ServerPlayer player)) return 0;
+                                                        int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "x");
+                                                        int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
+                                                        if (manager != null) {
+                                                            net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
+                                                            int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+                                                            manager.fireStrikeFromCommand(player, x, y, z, 2);
+                                                            return 1;
+                                                        }
+                                                        return 0;
+                                                    }))))
                             .then(net.minecraft.commands.Commands.argument("x", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                     .then(net.minecraft.commands.Commands.argument("z", com.mojang.brigadier.arguments.IntegerArgumentType.integer())
                                             .executes(context -> {
@@ -88,7 +118,7 @@ public final class InteriorVeil implements ModInitializer {
                                                 if (manager != null) {
                                                     net.minecraft.server.level.ServerLevel sLevel = (net.minecraft.server.level.ServerLevel) player.level();
                                                     int y = sLevel.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
-                                                    manager.fireStrikeFromCommand(player, x, y, z);
+                                                    manager.fireStrikeFromCommand(player, x, y, z, 0);
                                                     return 1;
                                                 }
                                                 return 0;
@@ -102,11 +132,27 @@ public final class InteriorVeil implements ModInitializer {
                                                         int y = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "y");
                                                         int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
                                                         if (manager != null) {
-                                                            manager.fireStrikeFromCommand(player, x, y, z);
+                                                            manager.fireStrikeFromCommand(player, x, y, z, 0);
                                                             return 1;
                                                         }
                                                         return 0;
                                                     })
+                                                    .then(net.minecraft.commands.Commands.argument("type", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 2))
+                                                            .executes(context -> {
+                                                                if (!(context.getSource().getEntity() instanceof ServerPlayer player)) {
+                                                                    return 0;
+                                                                }
+                                                                int x = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "x");
+                                                                int y = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "y");
+                                                                int z = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "z");
+                                                                int type = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "type");
+                                                                if (manager != null) {
+                                                                    manager.fireStrikeFromCommand(player, x, y, z, type);
+                                                                    return 1;
+                                                                }
+                                                                return 0;
+                                                            })
+                                                    )
                                             )
                                     )
                             )

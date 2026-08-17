@@ -1317,6 +1317,10 @@ public final class VeilManager {
     }
 
     public void fireStrikeFromCommand(ServerPlayer player, int x, int y, int z) {
+        fireStrikeFromCommand(player, x, y, z, 0);
+    }
+
+    public void fireStrikeFromCommand(ServerPlayer player, int x, int y, int z, int strikeType) {
         VeilBarrier barrier = barriers.values().stream()
                 .filter(b -> b.owner().equals(player.getUUID()) || player.hasPermissions(2))
                 .min(Comparator.comparingDouble(b -> BarrierGeometry.horizontalDistanceSquared(
@@ -1348,7 +1352,7 @@ public final class VeilManager {
         ));
         barrier = barriers.get(barrier.id());
 
-        fireCoordinateLaser(player, barrier, x + "," + y + "," + z + "," + barrier.advanced().strikeRadius());
+        fireCoordinateLaser(player, barrier, x + "," + y + "," + z + "," + barrier.advanced().strikeRadius() + "," + strikeType);
     }
 
     private void fireCoordinateLaser(ServerPlayer player, VeilBarrier barrier, String value) {

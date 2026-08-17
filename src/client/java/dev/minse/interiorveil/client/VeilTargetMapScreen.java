@@ -52,18 +52,35 @@ public final class VeilTargetMapScreen extends Screen {
         }
     }
 
+    private int strikeType = 0; // 0: 고폭, 1: EMP, 2: 보급
+    private Button typeButton;
+
+    private String getTypeButtonText() {
+        return switch (strikeType) {
+            case 1 -> "§b⚡ EMP탄";
+            case 2 -> "§a📦 보급포드";
+            default -> "§c💥 고폭탄";
+        };
+    }
+
     @Override
     protected void init() {
         mapSize = Math.min(384, this.height - 82);
         mapLeft = this.width / 2 - mapSize / 2;
         mapTop = 24;
         int buttonY = mapTop + mapSize + 8;
+
+        typeButton = addRenderableWidget(Button.builder(Component.literal(getTypeButtonText()), btn -> {
+            strikeType = (strikeType + 1) % 3;
+            btn.setMessage(Component.literal(getTypeButtonText()));
+        }).bounds(this.width / 2 - 200, buttonY, 90, 20).build());
+
         addRenderableWidget(Button.builder(Component.translatable("screen.interiorveil.target_map.save"), button -> save(false))
-                .bounds(this.width / 2 - 154, buttonY, 100, 20).build());
+                .bounds(this.width / 2 - 105, buttonY, 70, 20).build());
         fireButton = addRenderableWidget(Button.builder(Component.translatable("screen.interiorveil.target_map.fire"), button -> save(true))
-                .bounds(this.width / 2 - 50, buttonY, 100, 20).build());
+                .bounds(this.width / 2 - 30, buttonY, 70, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose())
-                .bounds(this.width / 2 + 54, buttonY, 100, 20).build());
+                .bounds(this.width / 2 + 45, buttonY, 65, 20).build());
     }
 
     @Override
@@ -88,6 +105,13 @@ public final class VeilTargetMapScreen extends Screen {
 
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_B) {
+            strikeType = (strikeType + 1) % 3;
+            if (typeButton != null) {
+                typeButton.setMessage(Component.literal(getTypeButtonText()));
+            }
+            return true;
+        }
         if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_V || event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_G) {
             save(true);
             return true;
@@ -138,7 +162,7 @@ public final class VeilTargetMapScreen extends Screen {
             int radius = (current != null) ? current.strikeRadius() : 20;
             VeilStrikeTargetTracker.recordStrike(map.barrierId(), selectedX, selectedY, selectedZ, radius);
             ClientPlayNetworking.send(new VeilAdminActionPayload(
-                    map.barrierId(), "laser_fire", selectedX + "," + selectedY + "," + selectedZ + "," + radius
+                    map.barrierId(), "laser_fire", selectedX + "," + selectedY + "," + selectedZ + "," + radius + "," + strikeType
             ));
         }
         onClose();
