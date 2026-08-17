@@ -197,6 +197,15 @@ public final class VeilXaeroIntegration {
             }
         }
 
+        if (VeilStrikeTargetTracker.isOnCooldown()) {
+            long rem = VeilStrikeTargetTracker.getRemainingCooldownSeconds();
+            client.player.displayClientMessage(
+                    Component.literal(String.format("§c⚠ 궤도 함포 재장전 및 냉각 중입니다! (남은 시간: %d초)", rem)),
+                    true
+            );
+            return;
+        }
+
         int strikeRadius = current != null ? current.strikeRadius() : 20;
 
         // 2분 만료 카운트다운 시작 (FIRED 상태 전환)

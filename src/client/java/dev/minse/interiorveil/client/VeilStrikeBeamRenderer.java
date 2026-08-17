@@ -338,16 +338,15 @@ public final class VeilStrikeBeamRenderer {
         double endY = Math.min(320.0, startY + 256.0);
         double beamHeight = endY - startY;
 
-        // --- 1. [Orbital Coil Rings] 수직 궤도 레일건 축을 따라 초고속으로 하강하는 전자기 가속 링 (14개) ---
-        int coilCount = 14;
+        // --- 1. [Orbital Coil Rings] 수직 궤도 레일건 축을 따라 초고속으로 하강하는 전자기 가속 링 (6개) ---
+        int coilCount = 6;
         for (int c = 0; c < coilCount; c++) {
-            // 시간 경과에 따라 상공에서 지상으로 초고속 하강하는 Y 좌표
             double ringY = endY - ((elapsed * 9.0 + c * (beamHeight / coilCount)) % beamHeight);
             if (ringY < startY || ringY > endY) continue;
 
             float coilFade = (float) Math.sin((ringY - startY) / beamHeight * Math.PI);
             float coilRadius = (float) (2.5 + Math.sin(c * 1.5 + anim * 2.0) * 0.8);
-            int coilNodes = 32;
+            int coilNodes = 16;
 
             for (int i = 0; i < coilNodes; i++) {
                 double angle = (i * 2.0 * Math.PI / coilNodes) + anim * 0.2;
@@ -355,14 +354,13 @@ public final class VeilStrikeBeamRenderer {
                 double pz = beam.z + Math.sin(angle) * coilRadius;
                 float size = 1.6f;
 
-                // 눈부신 사이언 전자기 가속 코일 링
                 drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size, 0, 240, 255, (int) (240 * coilFade));
                 drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size * 0.5f, 220, 255, 255, (int) (255 * coilFade));
             }
         }
 
         // --- 2. [Double Helix] 레일건 빔을 휘감아 회전하는 이중 나선 플라즈마 스트림 ---
-        int helixSteps = 60;
+        int helixSteps = 24;
         for (int h = 0; h < 2; h++) {
             double helixPhase = h * Math.PI;
             for (int s = 0; s < helixSteps; s++) {
@@ -377,18 +375,17 @@ public final class VeilStrikeBeamRenderer {
             }
         }
 
-        // --- 3. [10-Layer Concentric 3D Torus Mach Rings] 상공 200m 10중 입체 네온 도넛 튜브 고리 ---
-        int ringCount = 10;
-        int ringInterval = 5; // 고리 간 5틱(0.25초) 간격으로 연속 생성
-        int ringLifetime = 70; // 각 고리당 70틱(3.5초) 동안 초고속 팽창
+        // --- 3. [Concentric 3D Torus Mach Rings] 상공 200m 6중 입체 네온 도넛 튜브 고리 ---
+        int ringCount = 6;
+        int ringInterval = 8;
+        int ringLifetime = 60;
 
         for (int r = 0; r < ringCount; r++) {
             int ringStartTick = r * ringInterval;
             int ringElapsed = elapsed - ringStartTick;
             if (ringElapsed >= 0 && ringElapsed < ringLifetime) {
                 float p = (float) ringElapsed / ringLifetime;
-                // 반경 0m -> 300m로 마하 속도로 팽창
-                double radius = Math.pow(p, 0.58) * 300.0;
+                double radius = Math.pow(p, 0.58) * 280.0;
                 float alpha = (1.0f - p) * 0.95f;
 
                 if (alpha > 0.01f && radius > 0.5) {
@@ -396,37 +393,32 @@ public final class VeilStrikeBeamRenderer {
                     int ringG = (r % 2 == 0) ? 245 : 210;
                     int ringB = 255;
 
-                    // 1) 3D 입체 도넛 튜브 링 (튜브 두께: 2.4m)
                     drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, ringR, ringG, ringB, (int) (240 * alpha));
-                    // 2) 중심부 눈부신 화이트 에너지 코어 링 (튜브 두께: 1.0m)
                     drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 1.0f, 235, 255, 255, (int) (255 * alpha));
                 }
             }
         }
 
-        // --- 4. [Ground Surface Concentric Wave Rings] 바닥 지표면에 바짝 밀착되어 쫙 퍼져나가는 10중 평면 동심원 파동 ---
-        int groundRingCount = 10;
-        int groundInterval = 4; // 4틱(0.2초) 간격으로 연속 발생
-        int groundLifetime = 60; // 60틱(3초) 동안 지면 확산
+        // --- 4. [Ground Surface Concentric Wave Rings] 바닥 지표면에 바짝 밀착되어 쫙 퍼져나가는 6중 평면 동심원 파동 ---
+        int groundRingCount = 6;
+        int groundInterval = 7;
+        int groundLifetime = 50;
 
         for (int grIdx = 0; grIdx < groundRingCount; grIdx++) {
             int gStart = grIdx * groundInterval;
             int gElapsed = elapsed - gStart;
             if (gElapsed >= 0 && gElapsed < groundLifetime) {
                 float gp = (float) gElapsed / (float) groundLifetime;
-                // 지표면을 타고 0m -> 240m까지 팽창
-                double gr = Math.pow(gp, 0.55) * 240.0;
+                double gr = Math.pow(gp, 0.55) * 220.0;
                 float ga = (1.0f - gp) * 0.95f;
 
                 if (ga > 0.01f && gr > 0.5) {
-                    float ringWidth = (float) (2.5 + gp * 6.0); // 팽창할수록 자연스럽게 넓어지는 파면 폭
+                    float ringWidth = (float) (2.5 + gp * 6.0);
                     int grR = (grIdx % 2 == 0) ? 0 : 40;
                     int grG = (grIdx % 2 == 0) ? 235 : 200;
                     int grB = 255;
 
-                    // 1) 바닥 표면 밀착 메인 네온 사이언 파동 띠
                     drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, grR, grG, grB, (int) (240 * ga));
-                    // 2) 바닥 중심부 눈부신 화이트 코어 라인
                     drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, gr, ringWidth * 0.35f, 240, 255, 255, (int) (255 * ga));
                 }
             }
@@ -451,7 +443,7 @@ public final class VeilStrikeBeamRenderer {
             int a
     ) {
         net.minecraft.client.multiplayer.ClientLevel level = Minecraft.getInstance().level;
-        int segments = Math.max(72, Math.min(240, (int) (radius * 2.2)));
+        int segments = Math.max(32, Math.min(64, (int) (radius * 0.8)));
         double innerR = Math.max(0.0, radius - width * 0.5);
         double outerR = radius + width * 0.5;
 
@@ -536,8 +528,8 @@ public final class VeilStrikeBeamRenderer {
             int b,
             int a
     ) {
-        int mainSegments = Math.max(64, Math.min(160, (int) (mainRadius * 1.6)));
-        int tubeSegments = 8; // 8각형 단면 튜브 (원형 볼륨)
+        int mainSegments = Math.max(24, Math.min(48, (int) (mainRadius * 0.6)));
+        int tubeSegments = 4; // 4각형 다이아몬드 단면 튜브 (초경량 3D 볼륨)
 
         for (int i = 0; i < mainSegments; i++) {
             double u1 = i * 2.0 * Math.PI / mainSegments;
@@ -912,36 +904,24 @@ public final class VeilStrikeBeamRenderer {
             float radius,
             int r, int g, int b, int a
     ) {
+        if (a <= 1) return;
         float relX = (float) (cx - camPos.x);
         float relY = (float) (cy - camPos.y);
         float relZ = (float) (cz - camPos.z);
 
-        int sides = 8;
-        float angleStep = (float) (2.0 * Math.PI / sides);
+        float rx = right.x * radius;
+        float ry = right.y * radius;
+        float rz = right.z * radius;
 
-        for (int i = 0; i < sides; i++) {
-            float a1 = i * angleStep;
-            float a2 = (i + 1) * angleStep;
+        float ux = up.x * radius;
+        float uy = up.y * radius;
+        float uz = up.z * radius;
 
-            float cos1 = (float) Math.cos(a1) * radius;
-            float sin1 = (float) Math.sin(a1) * radius;
-            float cos2 = (float) Math.cos(a2) * radius;
-            float sin2 = (float) Math.sin(a2) * radius;
-
-            float v1x = relX + right.x * cos1 + up.x * sin1;
-            float v1y = relY + right.y * cos1 + up.y * sin1;
-            float v1z = relZ + right.z * cos1 + up.z * sin1;
-
-            float v2x = relX + right.x * cos2 + up.x * sin2;
-            float v2y = relY + right.y * cos2 + up.y * sin2;
-            float v2z = relZ + right.z * cos2 + up.z * sin2;
-
-            // Quad 형식 Buffer(RenderType.lightning)이므로 4개 버텍스로 구성: Center, V1, V2, Center
-            consumer.addVertex(pose, relX, relY, relZ).setColor(r, g, b, a);
-            consumer.addVertex(pose, v1x, v1y, v1z).setColor(r, g, b, 0);
-            consumer.addVertex(pose, v2x, v2y, v2z).setColor(r, g, b, 0);
-            consumer.addVertex(pose, relX, relY, relZ).setColor(r, g, b, a);
-        }
+        // 4개의 버텍스로 1개의 고효율 Billboard Quad 생성 (BufferBuilder 오버플로우 원천 방지)
+        consumer.addVertex(pose, relX - rx - ux, relY - ry - uy, relZ - rz - uz).setColor(r, g, b, a);
+        consumer.addVertex(pose, relX + rx - ux, relY + ry - uy, relZ + rz - uz).setColor(r, g, b, a);
+        consumer.addVertex(pose, relX + rx + ux, relY + ry + uy, relZ + rz + uz).setColor(r, g, b, a);
+        consumer.addVertex(pose, relX - rx + ux, relY - ry + uy, relZ - rz + uz).setColor(r, g, b, a);
     }
 
     private static void drawVerticalBeam(

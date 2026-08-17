@@ -49,10 +49,21 @@ public final class VeilStrikeTargetTracker {
         }
     }
 
+    public static final long COOLDOWN_MS = 7_000L; // 7초 발사 쿨다운
     private static final Map<UUID, TargetEntry> TARGETS = new ConcurrentHashMap<>();
     private static TargetEntry latestTarget = null;
+    private static long lastFireTime = 0L;
 
     private VeilStrikeTargetTracker() {
+    }
+
+    public static boolean isOnCooldown() {
+        return System.currentTimeMillis() - lastFireTime < COOLDOWN_MS;
+    }
+
+    public static long getRemainingCooldownSeconds() {
+        long remaining = COOLDOWN_MS - (System.currentTimeMillis() - lastFireTime);
+        return Math.max(0L, (remaining + 999L) / 1000L);
     }
 
     /**
@@ -70,7 +81,8 @@ public final class VeilStrikeTargetTracker {
      * 폭격 발사: B키 또는 발사 버튼을 누른 순간부터 2분 카운트다운 시작!
      */
     public static void recordStrike(UUID barrierId, int x, int y, int z, int strikeRadius) {
-        TargetEntry entry = new TargetEntry(x, y, z, strikeRadius, Status.FIRED, System.currentTimeMillis());
+        lastFireTime = System.currentTimeMillis();
+        TargetEntry entry = new TargetEntry(x, y, z, strikeRadius, Status.FIRED, lastFireTime);
         if (barrierId != null) {
             TARGETS.put(barrierId, entry);
         }

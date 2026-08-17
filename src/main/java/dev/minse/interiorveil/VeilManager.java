@@ -49,6 +49,7 @@ public final class VeilManager {
     private final Map<UUID, java.util.ArrayDeque<String>> recentEntries = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.List<StrikeBeam> activeStrikeBeams = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<PendingStrike> pendingStrikes = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final Map<UUID, Long> strikeCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
     private final VeilPlatformGenerator platformGenerator = new VeilPlatformGenerator();
     // 절대 방어막 결계 캐시 - 매 틱 순회 최적화
     private final java.util.Set<UUID> absoluteBarrierCache = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
@@ -1427,6 +1428,29 @@ public final class VeilManager {
             player.displayClientMessage(Component.translatable("message.interiorveil.laser_too_close"), true);
             return;
         }
+
+        // 1. 발사 쿨다운 검사 (7초)
+        long now = System.currentTimeMillis();
+        Long lastTime = strikeCooldowns.get(barrier.id());
+        if (lastTime != null && now - lastTime < 7000L) {
+            long remSec = (7000L - (now - lastTime) + 999L) / 1000L;
+            player.displayClientMessage(
+                    Component.literal(String.format("§c⚠ 궤도 함포 재장전 및 냉각 중입니다! (남은 시간: %d초)", remSec)),
+                    true
+            );
+            return;
+        }
+
+        // 2. 동시 대기 폭격 개수 제한 (서버/클라이언트 과부하 방지: 최대 18발)
+        if (pendingStrikes.size() >= 18) {
+            player.displayClientMessage(
+                    Component.literal("§c⚠ 현재 대기 중인 궤도 폭격이 너무 많습니다! (잠시 후 다시 시도하세요)"),
+                    true
+            );
+            return;
+        }
+
+        strikeCooldowns.put(barrier.id(), now);
 
         StrikeFormation formation = StrikeFormation.byIndex(formationIndex);
         int spacing = Math.max(14, (int) (barrier.advanced().strikeRadius() * 1.5));

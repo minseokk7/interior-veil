@@ -177,6 +177,16 @@ public final class VeilTargetMapScreen extends Screen {
             VeilConfigClientState.accept(current);
         }
         if (fire) {
+            if (VeilStrikeTargetTracker.isOnCooldown()) {
+                long rem = VeilStrikeTargetTracker.getRemainingCooldownSeconds();
+                if (minecraft != null && minecraft.player != null) {
+                    minecraft.player.displayClientMessage(
+                            Component.literal(String.format("§c⚠ 궤도 함포 재장전 및 냉각 중입니다! (남은 시간: %d초)", rem)),
+                            true
+                    );
+                }
+                return;
+            }
             int radius = (current != null) ? current.strikeRadius() : 20;
             VeilStrikeTargetTracker.recordStrike(map.barrierId(), selectedX, selectedY, selectedZ, radius);
             ClientPlayNetworking.send(new VeilAdminActionPayload(
