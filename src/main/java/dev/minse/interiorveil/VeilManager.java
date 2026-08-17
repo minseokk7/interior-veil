@@ -1613,10 +1613,13 @@ public final class VeilManager {
 
             if (strikeType == 1) {
                 // [탄종 1: EMP 전자기 펄스탄] - 지형 파괴 없음, 광역 마비 및 전기 방전, 겉날개 무력화
+                // * 결계 내부(오버월드 결계 영역 및 포켓 차원)에 있는 모든 대상은 완벽하게 보호됨!
                 double empRadius = Math.max(48.0, bombRadius * 3.0);
                 AABB empArea = new AABB(target, target).inflate(empRadius);
                 for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, empArea,
-                        candidate -> candidate.isAlive() && !isAttackFriendly(candidate, barrier))) {
+                        candidate -> candidate.isAlive()
+                                && !isProtectedFromThermalShockwave(candidate, barrier)
+                                && isTargetableHostile(candidate, barrier))) {
                     // 마비 및 디버프
                     entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 5, false, false));
                     entity.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 2, false, false));
@@ -1970,13 +1973,13 @@ public final class VeilManager {
             return !isAttackFriendly(player, barrier);
         }
 
-        // 2. 적대적 몬스터: Enemy 인터페이스 구현체 (Monster 등 모든 적대적 몹)
-        if (entity instanceof net.minecraft.world.entity.monster.Enemy) {
-            // 길들인 동물이나 아군은 Enemy가 아니므로 완벽하게 안전
+        // 2. 적대적 몬스터 및 유해 생물(박쥐 포함)
+        if (entity instanceof net.minecraft.world.entity.monster.Enemy
+                || entity instanceof net.minecraft.world.entity.ambient.Bat) {
             return true;
         }
 
-        // 3. 그 외 동물(Animal), 가축, 주민(Villager), 골렘(IronGolem), 박쥐, 오징어 등 비적대적 생명체는 일체 감지하지 않음
+        // 3. 그 외 가축(Animal), 길들인 펫, 주민(Villager), 골렘(IronGolem), 수중생물 등 비적대적 생명체는 일체 감지하지 않음
         return false;
     }
 

@@ -267,6 +267,8 @@ public final class VeilStrikeBeamRenderer {
         long gameTime = client.level.getGameTime();
         float anim = gameTime * 0.12f;
 
+        dev.minse.interiorveil.network.ForcefieldStatePayload veilState = VeilForcefieldRenderer.getCurrentState();
+
         for (ActiveBeam beam : BEAMS) {
             int elapsed = beam.maxTicks - beam.ticksRemaining;
             float fadeAlpha = Math.min(1.0f, (float) beam.ticksRemaining / 100.0f);
@@ -278,9 +280,9 @@ public final class VeilStrikeBeamRenderer {
             boolean isEmp = (beam.color == 0x00E5FF);
 
             if (isEmp) {
-                // [EMP 전용] 핵폭발/화염 버섯구름 대신, 지평선으로 퍼져나가는 순수 푸른 전자기 링 파동 렌더링
+                // [EMP 전용] 결계 내부 침투를 완벽 차단하는 전자기 링 및 지표면 파동 렌더링
                 if (elapsed < 120) {
-                    drawEmpShockwaveRings(consumer, pose, camPos, right, up, beam, elapsed, anim);
+                    drawEmpShockwaveRings(consumer, pose, camPos, right, up, beam, elapsed, anim, veilState);
                 }
             } else {
                 // [고폭탄 전용] 1. 다단계 초고속 열폭풍 충격파 파동 렌더링 (착탄 초기 160틱 = 8초)
@@ -331,7 +333,8 @@ public final class VeilStrikeBeamRenderer {
             Vector3f up,
             ActiveBeam beam,
             int elapsed,
-            float anim
+            float anim,
+            dev.minse.interiorveil.network.ForcefieldStatePayload veilState
     ) {
         double empCenterY = beam.y + 200.0;
         double startY = beam.y;
@@ -352,6 +355,7 @@ public final class VeilStrikeBeamRenderer {
                 double angle = (i * 2.0 * Math.PI / coilNodes) + anim * 0.2;
                 double px = beam.x + Math.cos(angle) * coilRadius;
                 double pz = beam.z + Math.sin(angle) * coilRadius;
+                if (isInsideVeil(px, pz, veilState)) continue;
                 float size = 1.6f;
 
                 drawSoftPuff(consumer, pose, camPos, px, ringY, pz, right, up, size, 0, 240, 255, (int) (240 * coilFade));
@@ -370,12 +374,13 @@ public final class VeilStrikeBeamRenderer {
                 double hr = 1.4 + Math.sin(t * 8.0) * 0.4;
                 double hx = beam.x + Math.cos(hAngle) * hr;
                 double hz = beam.z + Math.sin(hAngle) * hr;
+                if (isInsideVeil(hx, hz, veilState)) continue;
 
                 drawSoftPuff(consumer, pose, camPos, hx, hy, hz, right, up, 1.4f, 80, 220, 255, 160);
             }
         }
 
-        // --- 3. [Concentric 3D Torus Mach Rings] 상공 200m 6중 입체 네온 도넛 튜브 고리 ---
+        // --- 3. [Concentric 3D Torus Mach Rings] 상공 200m 6중 입체 네온 도넛 튜브 고리 (결계 침투 차단) ---
         int ringCount = 6;
         int ringInterval = 8;
         int ringLifetime = 60;
@@ -393,13 +398,13 @@ public final class VeilStrikeBeamRenderer {
                     int ringG = (r % 2 == 0) ? 245 : 210;
                     int ringB = 255;
 
-                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, ringR, ringG, ringB, (int) (240 * alpha));
-                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 1.0f, 235, 255, 255, (int) (255 * alpha));
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, ringR, ringG, ringB, (int) (240 * alpha), veilState);
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 1.0f, 235, 255, 255, (int) (255 * alpha), veilState);
                 }
             }
         }
 
-        // --- 4. [Ground Surface Concentric Wave Rings] 바닥 지표면에 바짝 밀착되어 쫙 퍼져나가는 6중 평면 동심원 파동 ---
+        // --- 4. [Ground Surface Concentric Wave Rings] 바닥 지표면에 바짝 밀착되어 쫙 퍼져나가는 6중 평면 동심원 파동 (결계 침투 차단) ---
         int groundRingCount = 6;
         int groundInterval = 7;
         int groundLifetime = 50;
@@ -418,15 +423,23 @@ public final class VeilStrikeBeamRenderer {
                     int grG = (grIdx % 2 == 0) ? 235 : 200;
                     int grB = 255;
 
-                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, grR, grG, grB, (int) (240 * ga));
-                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, gr, ringWidth * 0.35f, 240, 255, 255, (int) (255 * ga));
+                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.15, beam.z, gr, ringWidth, grR, grG, grB, (int) (240 * ga), veilState);
+                    drawFlatGroundWaveRing(consumer, pose, camPos, beam.x, beam.y + 0.18, beam.z, gr, ringWidth * 0.35f, 240, 255, 255, (int) (255 * ga), veilState);
                 }
             }
         }
     }
 
+    private static boolean isInsideVeil(double x, double z, dev.minse.interiorveil.network.ForcefieldStatePayload veilState) {
+        if (veilState == null || !veilState.active()) return false;
+        double dx = x - veilState.centerX();
+        double dz = z - veilState.centerZ();
+        return (dx * dx + dz * dz) < (veilState.radius() * veilState.radius());
+    }
+
     /**
      * 지형 표면(Terrain Heightmap)의 굴곡과 언덕, 산등성이를 실시간으로 완벽하게 타고 흐르는 동심원 충격파 링을 렌더링한다.
+     * 결계 내부로 파고들지 못하도록 결계 외벽에서 깔끔하게 차단(Clipping)된다.
      */
     private static void drawFlatGroundWaveRing(
             VertexConsumer consumer,
@@ -440,7 +453,8 @@ public final class VeilStrikeBeamRenderer {
             int r,
             int g,
             int b,
-            int a
+            int a,
+            dev.minse.interiorveil.network.ForcefieldStatePayload veilState
     ) {
         net.minecraft.client.multiplayer.ClientLevel level = Minecraft.getInstance().level;
         int segments = Math.max(32, Math.min(64, (int) (radius * 0.8)));
@@ -459,6 +473,16 @@ public final class VeilStrikeBeamRenderer {
             // 1. 세그먼트 1의 실제 지형 표면 Y 높이 샘플링
             double wx1 = cx + radius * cos1;
             double wz1 = cz + radius * sin1;
+
+            // 2. 세그먼트 2의 실제 지형 표면 Y 높이 샘플링
+            double wx2 = cx + radius * cos2;
+            double wz2 = cz + radius * sin2;
+
+            // 결계 내부 침투 완벽 차단: 결계 내부 좌표에 속한 세그먼트는 렌더링 스킵
+            if (isInsideVeil(wx1, wz1, veilState) || isInsideVeil(wx2, wz2, veilState)) {
+                continue;
+            }
+
             double groundY1 = cy;
             if (level != null) {
                 int bx1 = (int) Math.floor(wx1);
@@ -469,9 +493,6 @@ public final class VeilStrikeBeamRenderer {
                 }
             }
 
-            // 2. 세그먼트 2의 실제 지형 표면 Y 높이 샘플링
-            double wx2 = cx + radius * cos2;
-            double wz2 = cz + radius * sin2;
             double groundY2 = cy;
             if (level != null) {
                 int bx2 = (int) Math.floor(wx2);
@@ -512,7 +533,7 @@ public final class VeilStrikeBeamRenderer {
 
     /**
      * 오르비탈 레일건 스타일의 3D 입체 발광 네온 도넛 튜브 링(Torus Tube Mesh)을 렌더링한다.
-     * 어느 각도에서 바라보아도 두께감과 원형 볼륨이 살아있는 완벽한 3D 에너지 튜브 고리.
+     * 결계 내부로 파고들지 못하도록 결계 외벽에서 깔끔하게 차단(Clipping)된다.
      */
     private static void drawGlowingTorusRing(
             VertexConsumer consumer,
@@ -526,7 +547,8 @@ public final class VeilStrikeBeamRenderer {
             int r,
             int g,
             int b,
-            int a
+            int a,
+            dev.minse.interiorveil.network.ForcefieldStatePayload veilState
     ) {
         int mainSegments = Math.max(24, Math.min(48, (int) (mainRadius * 0.6)));
         int tubeSegments = 4; // 4각형 다이아몬드 단면 튜브 (초경량 3D 볼륨)
@@ -539,6 +561,16 @@ public final class VeilStrikeBeamRenderer {
             float sinU1 = (float) Math.sin(u1);
             float cosU2 = (float) Math.cos(u2);
             float sinU2 = (float) Math.sin(u2);
+
+            double wx1 = cx + mainRadius * cosU1;
+            double wz1 = cz + mainRadius * sinU1;
+            double wx2 = cx + mainRadius * cosU2;
+            double wz2 = cz + mainRadius * sinU2;
+
+            // 결계 내부 침투 완벽 차단
+            if (isInsideVeil(wx1, wz1, veilState) || isInsideVeil(wx2, wz2, veilState)) {
+                continue;
+            }
 
             for (int j = 0; j < tubeSegments; j++) {
                 double v1 = j * 2.0 * Math.PI / tubeSegments;
