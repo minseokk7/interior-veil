@@ -377,7 +377,7 @@ public final class VeilStrikeBeamRenderer {
             }
         }
 
-        // --- 3. [10-Layer Concentric Solid Mach Shockwave Rings] 상공 200m에서 연속으로 퍼져나가는 10중 연속 고리 ---
+        // --- 3. [10-Layer Concentric 3D Torus Mach Rings] 상공 200m 10중 입체 네온 도넛 튜브 고리 ---
         int ringCount = 10;
         int ringInterval = 5; // 고리 간 5틱(0.25초) 간격으로 연속 생성
         int ringLifetime = 70; // 각 고리당 70틱(3.5초) 동안 초고속 팽창
@@ -396,15 +396,15 @@ public final class VeilStrikeBeamRenderer {
                     int ringG = (r % 2 == 0) ? 245 : 210;
                     int ringB = 255;
 
-                    // 1) 360도 완벽하게 이어진 메인 네온 사이언 고리 (두께 2.2m)
-                    drawSolidRingRibbon(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.2f, ringR, ringG, ringB, (int) (240 * alpha));
-                    // 2) 고리 중심의 눈부신 화이트 코어 라인 (두께 0.8m)
-                    drawSolidRingRibbon(consumer, pose, camPos, beam.x, empCenterY + 0.05, beam.z, radius, 0.8f, 235, 255, 255, (int) (255 * alpha));
+                    // 1) 3D 입체 도넛 튜브 링 (튜브 두께: 2.4m)
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 2.4f, ringR, ringG, ringB, (int) (240 * alpha));
+                    // 2) 중심부 눈부신 화이트 에너지 코어 링 (튜브 두께: 1.0m)
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, empCenterY, beam.z, radius, 1.0f, 235, 255, 255, (int) (255 * alpha));
                 }
             }
         }
 
-        // --- 4. [Ground Shockwave Ring] 지상 착탄 지점 6중 연속 지상 마하 링 ---
+        // --- 4. [Ground Shockwave Ring] 지상 착탄 지점 6중 입체 도넛 링 ---
         for (int grIdx = 0; grIdx < 6; grIdx++) {
             int gStart = grIdx * 6;
             int gElapsed = elapsed - gStart;
@@ -413,86 +413,77 @@ public final class VeilStrikeBeamRenderer {
                 double gr = Math.pow(gp, 0.6) * 180.0;
                 float ga = (1.0f - gp) * 0.9f;
                 if (ga > 0.01f && gr > 0.5) {
-                    drawSolidRingRibbon(consumer, pose, camPos, beam.x, beam.y + 0.6, beam.z, gr, 1.8f, 0, 230, 255, (int) (230 * ga));
-                    drawSolidRingRibbon(consumer, pose, camPos, beam.x, beam.y + 0.65, beam.z, gr, 0.6f, 255, 255, 255, (int) (255 * ga));
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, beam.y + 0.8, beam.z, gr, 2.0f, 0, 230, 255, (int) (230 * ga));
+                    drawGlowingTorusRing(consumer, pose, camPos, beam.x, beam.y + 0.8, beam.z, gr, 0.8f, 255, 255, 255, (int) (255 * ga));
                 }
             }
         }
     }
 
     /**
-     * 끊김 없이 360도 완벽하게 이어지는 매끄러운 단일 네온 링 밴드(Continuous Solid Ring Ribbon)를 렌더링한다.
+     * 오르비탈 레일건 스타일의 3D 입체 발광 네온 도넛 튜브 링(Torus Tube Mesh)을 렌더링한다.
+     * 어느 각도에서 바라보아도 두께감과 원형 볼륨이 살아있는 완벽한 3D 에너지 튜브 고리.
      */
-    private static void drawSolidRingRibbon(
+    private static void drawGlowingTorusRing(
             VertexConsumer consumer,
             PoseStack.Pose pose,
             Vec3 camPos,
             double cx,
             double cy,
             double cz,
-            double radius,
-            float ringWidth,
+            double mainRadius,
+            float tubeRadius,
             int r,
             int g,
             int b,
             int a
     ) {
-        int segments = Math.max(64, Math.min(180, (int) (radius * 1.8)));
-        double innerR = Math.max(0.0, radius - ringWidth * 0.5);
-        double outerR = radius + ringWidth * 0.5;
+        int mainSegments = Math.max(64, Math.min(160, (int) (mainRadius * 1.6)));
+        int tubeSegments = 8; // 8각형 단면 튜브 (원형 볼륨)
 
-        for (int i = 0; i < segments; i++) {
-            double a1 = i * 2.0 * Math.PI / segments;
-            double a2 = (i + 1) * 2.0 * Math.PI / segments;
+        for (int i = 0; i < mainSegments; i++) {
+            double u1 = i * 2.0 * Math.PI / mainSegments;
+            double u2 = (i + 1) * 2.0 * Math.PI / mainSegments;
 
-            float sin1 = (float) Math.sin(a1);
-            float cos1 = (float) Math.cos(a1);
-            float sin2 = (float) Math.sin(a2);
-            float cos2 = (float) Math.cos(a2);
+            float cosU1 = (float) Math.cos(u1);
+            float sinU1 = (float) Math.sin(u1);
+            float cosU2 = (float) Math.cos(u2);
+            float sinU2 = (float) Math.sin(u2);
 
-            // 1. 수평면 (X-Z 평면) 쿼드
-            float x1 = (float) (cx + innerR * cos1 - camPos.x);
-            float z1 = (float) (cz + innerR * sin1 - camPos.z);
-            float y1 = (float) (cy - camPos.y);
+            for (int j = 0; j < tubeSegments; j++) {
+                double v1 = j * 2.0 * Math.PI / tubeSegments;
+                double v2 = (j + 1) * 2.0 * Math.PI / tubeSegments;
 
-            float x2 = (float) (cx + outerR * cos1 - camPos.x);
-            float z2 = (float) (cz + outerR * sin1 - camPos.z);
-            float y2 = (float) (cy - camPos.y);
+                float cosV1 = (float) Math.cos(v1);
+                float sinV1 = (float) Math.sin(v1);
+                float cosV2 = (float) Math.cos(v2);
+                float sinV2 = (float) Math.sin(v2);
 
-            float x3 = (float) (cx + outerR * cos2 - camPos.x);
-            float z3 = (float) (cz + outerR * sin2 - camPos.z);
-            float y3 = (float) (cy - camPos.y);
+                // 3D 토러스 공식: P(u, v) = ((R + r * cos(v)) * cos(u), r * sin(v), (R + r * cos(v)) * sin(u))
+                float r1 = (float) (mainRadius + tubeRadius * cosV1);
+                float r2 = (float) (mainRadius + tubeRadius * cosV2);
 
-            float x4 = (float) (cx + innerR * cos2 - camPos.x);
-            float z4 = (float) (cz + innerR * sin2 - camPos.z);
-            float y4 = (float) (cy - camPos.y);
+                float x1 = (float) (cx + r1 * cosU1 - camPos.x);
+                float y1 = (float) (cy + tubeRadius * sinV1 - camPos.y);
+                float z1 = (float) (cz + r1 * sinU1 - camPos.z);
 
-            // 상단/하단 양면 렌더링
-            consumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, a);
-            consumer.addVertex(pose, x2, y2, z2).setColor(r, g, b, a);
-            consumer.addVertex(pose, x3, y3, z3).setColor(r, g, b, a);
-            consumer.addVertex(pose, x4, y4, z4).setColor(r, g, b, a);
+                float x2 = (float) (cx + r2 * cosU1 - camPos.x);
+                float y2 = (float) (cy + tubeRadius * sinV2 - camPos.y);
+                float z2 = (float) (cz + r2 * sinU1 - camPos.z);
 
-            consumer.addVertex(pose, x4, y4, z4).setColor(r, g, b, a);
-            consumer.addVertex(pose, x3, y3, z3).setColor(r, g, b, a);
-            consumer.addVertex(pose, x2, y2, z2).setColor(r, g, b, a);
-            consumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, a);
+                float x3 = (float) (cx + r2 * cosU2 - camPos.x);
+                float y3 = (float) (cy + tubeRadius * sinV2 - camPos.y);
+                float z3 = (float) (cz + r2 * sinU2 - camPos.z);
 
-            // 2. 수직 측면 (Vertical Lip) 쿼드로 어느 시야각에서도 완벽한 두께감 부여
-            float halfH = ringWidth * 0.35f;
-            float vyTop = (float) (cy + halfH - camPos.y);
-            float vyBot = (float) (cy - halfH - camPos.y);
-            float midR = (float) radius;
+                float x4 = (float) (cx + r1 * cosU2 - camPos.x);
+                float y4 = (float) (cy + tubeRadius * sinV1 - camPos.y);
+                float z4 = (float) (cz + r1 * sinU2 - camPos.z);
 
-            float mx1 = (float) (cx + midR * cos1 - camPos.x);
-            float mz1 = (float) (cz + midR * sin1 - camPos.z);
-            float mx2 = (float) (cx + midR * cos2 - camPos.x);
-            float mz2 = (float) (cz + midR * sin2 - camPos.z);
-
-            consumer.addVertex(pose, mx1, vyTop, mz1).setColor(r, g, b, a);
-            consumer.addVertex(pose, mx2, vyTop, mz2).setColor(r, g, b, a);
-            consumer.addVertex(pose, mx2, vyBot, mz2).setColor(r, g, b, a);
-            consumer.addVertex(pose, mx1, vyBot, mz1).setColor(r, g, b, a);
+                consumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, a);
+                consumer.addVertex(pose, x2, y2, z2).setColor(r, g, b, a);
+                consumer.addVertex(pose, x3, y3, z3).setColor(r, g, b, a);
+                consumer.addVertex(pose, x4, y4, z4).setColor(r, g, b, a);
+            }
         }
     }
 
