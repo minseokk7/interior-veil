@@ -1,0 +1,247 @@
+{
+  "credit": "Interior Veil 3D Tactical Targeting Laser",
+  "texture_size": [32, 32],
+  "textures": {
+    "0": "interiorveil:item/targeting_laser",
+    "particle": "interiorveil:item/targeting_laser"
+  },
+  "elements": [
+    {
+      "name": "handle",
+      "from": [7, 1, 7],
+      "to": [9, 7, 9],
+      "faces": {
+        "north": {"uv": [0, 8, 4, 16], "texture": "#0"},
+        "east": {"uv": [0, 8, 4, 16], "texture": "#0"},
+        "south": {"uv": [0, 8, 4, 16], "texture": "#0"},
+        "west": {"uv": [0, 8, 4, 16], "texture": "#0"},
+        "up": {"uv": [0, 8, 4, 12], "texture": "#0"},
+        "down": {"uv": [0, 12, 4, 16], "texture": "#0"}
+      }
+    },
+    {
+      "name": "handle_bottom",
+      "from": [6.5, 0, 6.5],
+      "to": [9.5, 1.5, 9.5],
+      "faces": {
+        "north": {"uv": [0, 0, 4, 2], "texture": "#0"},
+        "east": {"uv": [0, 0, 4, 2], "texture": "#0"},
+        "south": {"uv": [0, 0, 4, 2], "texture": "#0"},
+        "west": {"uv": [0, 0, 4, 2], "texture": "#0"},
+        "up": {"uv": [0, 0, 4, 4], "texture": "#0"},
+        "down": {"uv": [0, 0, 4, 4], "texture": "#0"}
+      }
+    },
+    {
+      "name": "trigger_guard",
+      "from": [7.5, 3.5, 9],
+      "to": [8.5, 6, 11],
+      "faces": {
+        "north": {"uv": [0, 0, 2, 4], "texture": "#0"},
+        "east": {"uv": [0, 0, 4, 4], "texture": "#0"},
+        "south": {"uv": [0, 0, 2, 4], "texture": "#0"},
+        "west": {"uv": [0, 0, 4, 4], "texture": "#0"},
+        "up": {"uv": [0, 0, 2, 4], "texture": "#0"},
+        "down": {"uv": [0, 0, 2, 4], "texture": "#0"}
+      }
+    },
+    {
+      "name": "trigger",
+      "from": [7.7, 4.5, 9.2],
+      "to": [8.3, 5.8, 10.2],
+      "faces": {
+        "north": {"uv": [8, 8, 10, 10], "texture": "#0"},
+        "east": {"uv": [8, 8, 10, 10], "texture": "#0"},
+        "south": {"uv": [8, 8, 10, 10], "texture": "#0"},
+        "west": {"uv": [8, 8, 10, 10], "texture": "#0"},
+        "up": {"uv": [8, 8, 10, 10], "texture": "#0"},
+        "down": {"uv": [8, 8, 10, 10], "texture": "#0"}
+      }
+    },
+    {
+      "name": "main_body",
+      "from": [6, 6, 4],
+      "to": [10, 10, 14],
+      "faces": {
+        "north": {"uv": [0, 0, 8, 8], "texture": "#0"},
+        "east": {"uv": [0, 0, 8, 8], "texture": "#0"},
+        "south": {"uv": [0, 0, 8, 8], "texture": "#0"},
+        "west": {"uv": [0, 0, 8, 8], "texture": "#0"},
+        "up": {"uv": [0, 0, 8, 8], "texture": "#0"},
+        "down": {"uv": [0, 0, 8, 8], "texture": "#0"}
+      }
+    },
+    {
+      "name": "side_armor",
+      "from": [5.5, 7, 6],
+      "to": [10.5, 9, 12],
+      "faces": {
+        "north": {"uv": [0, 0, 4, 4], "texture": "#0"},
+        "east": {"uv": [0, 0, 8, 4], "texture": "#0"},
+        "south": {"uv": [0, 0, 4, 4], "texture": "#0"},
+        "west": {"uv": [0, 0, 8, 4], "texture": "#0"},
+        "up": {"uv": [0, 0, 8, 4], "texture": "#0"},
+        "down": {"uv": [0, 0, 8, 4], "texture": "#0"}
+      }
+    },
+    {
+      "name": "crystal_core",
+      "from": [6.5, 7.2, 7.5],
+      "to": [9.5, 8.8, 10.5],
+      "faces": {
+        "north": {"uv": [8, 0, 16, 8], "texture": "#0"},
+        "east": {"uv": [8, 0, 16, 8], "texture": "#0"},
+        "south": {"uv": [8, 0, 16, 8], "texture": "#0"},
+        "west": {"uv": [8, 0, 16, 8], "texture": "#0"},
+        "up": {"uv": [8, 0, 16, 8], "texture": "#0"},
+        "down": {"uv": [8, 0, 16, 8], "texture": "#0"}
+      }
+    },
+    {
+      "name": "barrel",
+      "from": [6.5, 6.5, 0],
+      "to": [9.5, 9.5, 4],
+      "faces": {
+        "north": {"uv": [0, 0, 6, 6], "texture": "#0"},
+        "east": {"uv": [0, 0, 8, 6], "texture": "#0"},
+        "south": {"uv": [0, 0, 6, 6], "texture": "#0"},
+        "west": {"uv": [0, 0, 8, 6], "texture": "#0"},
+        "up": {"uv": [0, 0, 6, 8], "texture": "#0"},
+        "down": {"uv": [0, 0, 6, 8], "texture": "#0"}
+      }
+    },
+    {
+      "name": "emitter_ring",
+      "from": [6, 6, -0.8],
+      "to": [10, 10, 0.2],
+      "faces": {
+        "north": {"uv": [8, 8, 16, 16], "texture": "#0"},
+        "east": {"uv": [8, 8, 10, 16], "texture": "#0"},
+        "south": {"uv": [8, 8, 16, 16], "texture": "#0"},
+        "west": {"uv": [8, 8, 10, 16], "texture": "#0"},
+        "up": {"uv": [8, 8, 16, 10], "texture": "#0"},
+        "down": {"uv": [8, 8, 16, 10], "texture": "#0"}
+      }
+    },
+    {
+      "name": "laser_lens",
+      "from": [7, 7, -1.0],
+      "to": [9, 9, -0.8],
+      "faces": {
+        "north": {"uv": [10, 10, 14, 14], "texture": "#0"},
+        "east": {"uv": [10, 10, 12, 14], "texture": "#0"},
+        "south": {"uv": [10, 10, 14, 14], "texture": "#0"},
+        "west": {"uv": [10, 10, 12, 14], "texture": "#0"},
+        "up": {"uv": [10, 10, 14, 12], "texture": "#0"},
+        "down": {"uv": [10, 10, 14, 12], "texture": "#0"}
+      }
+    },
+    {
+      "name": "scope_rail",
+      "from": [7.5, 10, 6],
+      "to": [8.5, 11, 12],
+      "faces": {
+        "north": {"uv": [0, 0, 2, 2], "texture": "#0"},
+        "east": {"uv": [0, 0, 8, 2], "texture": "#0"},
+        "south": {"uv": [0, 0, 2, 2], "texture": "#0"},
+        "west": {"uv": [0, 0, 8, 2], "texture": "#0"},
+        "up": {"uv": [0, 0, 2, 8], "texture": "#0"},
+        "down": {"uv": [0, 0, 2, 8], "texture": "#0"}
+      }
+    },
+    {
+      "name": "scope_tube",
+      "from": [6.5, 11, 4],
+      "to": [9.5, 13.5, 13],
+      "faces": {
+        "north": {"uv": [0, 0, 6, 5], "texture": "#0"},
+        "east": {"uv": [0, 0, 12, 5], "texture": "#0"},
+        "south": {"uv": [0, 0, 6, 5], "texture": "#0"},
+        "west": {"uv": [0, 0, 12, 5], "texture": "#0"},
+        "up": {"uv": [0, 0, 6, 12], "texture": "#0"},
+        "down": {"uv": [0, 0, 6, 12], "texture": "#0"}
+      }
+    },
+    {
+      "name": "scope_front_lens",
+      "from": [6, 10.5, 3],
+      "to": [10, 14, 4],
+      "faces": {
+        "north": {"uv": [8, 8, 16, 16], "texture": "#0"},
+        "east": {"uv": [8, 8, 10, 16], "texture": "#0"},
+        "south": {"uv": [8, 8, 16, 16], "texture": "#0"},
+        "west": {"uv": [8, 8, 10, 16], "texture": "#0"},
+        "up": {"uv": [8, 8, 16, 10], "texture": "#0"},
+        "down": {"uv": [8, 8, 16, 10], "texture": "#0"}
+      }
+    },
+    {
+      "name": "sensor_box",
+      "from": [10, 7.5, 5],
+      "to": [11.5, 9.5, 9],
+      "faces": {
+        "north": {"uv": [0, 0, 3, 4], "texture": "#0"},
+        "east": {"uv": [0, 0, 6, 4], "texture": "#0"},
+        "south": {"uv": [0, 0, 3, 4], "texture": "#0"},
+        "west": {"uv": [0, 0, 6, 4], "texture": "#0"},
+        "up": {"uv": [0, 0, 3, 6], "texture": "#0"},
+        "down": {"uv": [0, 0, 3, 6], "texture": "#0"}
+      }
+    },
+    {
+      "name": "sensor_antenna",
+      "from": [10.5, 9.5, 8],
+      "to": [11, 13, 8.5],
+      "faces": {
+        "north": {"uv": [0, 0, 1, 6], "texture": "#0"},
+        "east": {"uv": [0, 0, 1, 6], "texture": "#0"},
+        "south": {"uv": [0, 0, 1, 6], "texture": "#0"},
+        "west": {"uv": [0, 0, 1, 6], "texture": "#0"},
+        "up": {"uv": [0, 0, 1, 1], "texture": "#0"},
+        "down": {"uv": [0, 0, 1, 1], "texture": "#0"}
+      }
+    }
+  ],
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [0, -90, -25],
+      "translation": [0, 2.5, 1],
+      "scale": [0.55, 0.55, 0.55]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [0, 90, 25],
+      "translation": [0, 2.5, 1],
+      "scale": [0.55, 0.55, 0.55]
+    },
+    "firstperson_righthand": {
+      "rotation": [0, -90, 20],
+      "translation": [1.13, 3.2, 1.13],
+      "scale": [0.65, 0.65, 0.65]
+    },
+    "firstperson_lefthand": {
+      "rotation": [0, 90, -20],
+      "translation": [1.13, 3.2, 1.13],
+      "scale": [0.65, 0.65, 0.65]
+    },
+    "ground": {
+      "rotation": [0, 0, 0],
+      "translation": [0, 3, 0],
+      "scale": [0.5, 0.5, 0.5]
+    },
+    "gui": {
+      "rotation": [30, 225, 0],
+      "translation": [0, 0, 0],
+      "scale": [0.65, 0.65, 0.65]
+    },
+    "head": {
+      "rotation": [0, 0, 0],
+      "translation": [0, 0, 0],
+      "scale": [1, 1, 1]
+    },
+    "fixed": {
+      "rotation": [0, 180, 0],
+      "translation": [0, 0, 0],
+      "scale": [0.7, 0.7, 0.7]
+    }
+  }
+}
